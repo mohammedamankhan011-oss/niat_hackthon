@@ -43,7 +43,14 @@ export function App() {
           />
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/scans/:id" element={<ScanResultPage />} />
-          <Route path="/call" element={<LiveCallGuardPage />} />
+          <Route
+            path="/call"
+            element={
+              <ProtectedRoute>
+                <LiveCallGuardPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/check" element={<CheckPayPage />} />
           <Route path="/trends" element={<TrendsPage />} />
 

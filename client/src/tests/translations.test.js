@@ -21,9 +21,25 @@ test('translations provide consistent UI strings in English, Hindi and Kannada',
 });
 
 test('getScamTypeLabel provides localized names for all critical Indian scams', () => {
-  const scamTypes = ['digital_arrest', 'electricity_bill', 'bank_kyc', 'part_time_job'];
+  const scamTypes = [
+    'kyc_bank',
+    'job_task',
+    'digital_arrest',
+    'lottery_prize',
+    'investment_trading',
+    'upi_payment_request',
+    'delivery_courier',
+    'loan_app',
+    'electricity_bill',
+    'impersonation',
+    'phishing_link',
+    'sextortion',
+    'other',
+    'none'
+  ];
 
   for (const type of scamTypes) {
+    assert.ok(SCAM_TYPES[type], `SCAM_TYPES must contain ${type}`);
     const enLabel = getScamTypeLabel(type, 'en');
     const hiLabel = getScamTypeLabel(type, 'hi');
     const knLabel = getScamTypeLabel(type, 'kn');

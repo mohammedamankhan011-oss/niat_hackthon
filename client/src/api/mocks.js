@@ -127,16 +127,16 @@ const SEED_SCANS = [
   {
     id: 'scan_003',
     input_type: 'image',
-    message_text: 'Dear SBI User, your YONO account has been BLOCKED due to incomplete PAN KYC. Please click here to unblock your net banking: https://sbi-kyc-verify.example/login. Failure will lead to permanent account suspension.',
+    message_text: 'Dear SBI User, your YONO account has been BLOCKED due to incomplete PAN KYC. Please click here to unblock your net banking: https://sbi-kyc-update.example/login. Failure will lead to permanent account suspension.',
     risk_level: 'scam',
     risk_score: 96,
-    scam_type: 'bank_kyc',
+    scam_type: 'kyc_bank',
     summary: 'Phishing attack mimicking State Bank of India with a fraudulent URL aimed at stealing net banking credentials and OTPs.',
     explanation: 'SBI strictly uses "sbi.co.in" or official YONO app. Any link ending in ".example", ".online", ".xyz", ".top", or ".site" is a malicious phishing website created to harvest your internet banking username, password, and OTP.',
     red_flags: [
       {
         flag: 'Malicious Phishing Domain',
-        evidence: 'https://sbi-kyc-verify.example/login',
+        evidence: 'https://sbi-kyc-update.example/login',
         explanation: 'Official SBI domains end in sbi.co.in. The domain .example was created for demonstration.'
       },
       {
@@ -154,15 +154,15 @@ const SEED_SCANS = [
     identifiers: {
       phones: [],
       upi_ids: [],
-      urls: ['https://sbi-kyc-verify.example/login'],
+      urls: ['https://sbi-kyc-update.example/login'],
       emails: []
     },
     community_matches: [
       {
         identifier_type: 'url',
-        identifier_value: 'https://sbi-kyc-verify.example/login',
-        report_count: 156,
-        last_7_days_count: 67
+        identifier_value: 'sbi-kyc-update.example',
+        report_count: 173,
+        last_7_days_count: 78
       }
     ],
     language: 'en',
@@ -174,7 +174,7 @@ const SEED_SCANS = [
     message_text: 'Earn ₹3000 to ₹8000 daily by simply liking YouTube videos and rating Google Maps hotels. No experience required. Work from home 30 minutes daily. Contact HR Priya on Telegram: @GlobalTaskHR77 for instant ₹500 joining bonus.',
     risk_level: 'scam',
     risk_score: 91,
-    scam_type: 'part_time_job',
+    scam_type: 'job_task',
     summary: 'Task-based prepaid investment scam operating through Telegram masquerading as easy work-from-home employment.',
     explanation: 'Scammers pay ₹150–₹500 for the first 2 tasks to build trust, then trap victims in "prepaid crypto/merchant recharge tasks" requiring ₹10,000 to ₹5,00,000 deposits that can never be withdrawn.',
     red_flags: [
@@ -218,7 +218,7 @@ const SEED_SCANS = [
     message_text: 'Your delivery order #9823101 has been picked up by delivery partner. Track live delivery on your app. OTP for delivery is 4821.',
     risk_level: 'safe',
     risk_score: 5,
-    scam_type: 'safe_message',
+    scam_type: 'none',
     summary: 'Standard food delivery notification with legitimate order tracking information.',
     explanation: 'Contains normal operational transactional text with no external links, no requests for payment, and legitimate delivery pin instructions.',
     red_flags: [],
@@ -327,38 +327,65 @@ const SEED_GUARDIANS = {
 const SEED_LOOKUPS = {
   '0000000001': {
     identifier_type: 'phone',
-    identifier_value: '+91 00000 00001',
-    report_count: 52,
-    last_7_days_count: 21,
-    scam_types: ['electricity_bill', 'bank_kyc'],
-    last_reported_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    verdict: 'reported'
-  },
-  'kyc.update.sbi@demoupi': {
-    identifier_type: 'upi',
-    identifier_value: 'kyc.update.sbi@demoupi',
-    report_count: 84,
-    last_7_days_count: 36,
-    scam_types: ['bank_kyc', 'part_time_job'],
-    last_reported_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    verdict: 'reported'
-  },
-  'sbi-kyc-verify.example': {
-    identifier_type: 'url',
-    identifier_value: 'https://sbi-kyc-verify.example/login',
-    report_count: 173,
-    last_7_days_count: 78,
-    scam_types: ['bank_kyc'],
-    last_reported_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    identifier_value: '+910000000001',
+    report_count: 94,
+    last_7_days_count: 42,
+    scam_types: ['digital_arrest', 'delivery_courier'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     verdict: 'reported'
   },
   '0000000002': {
     identifier_type: 'phone',
-    identifier_value: '+91 00000 00002',
-    report_count: 94,
-    last_7_days_count: 42,
-    scam_types: ['digital_arrest', 'customs_courier'],
-    last_reported_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    identifier_value: '+910000000002',
+    report_count: 52,
+    last_7_days_count: 21,
+    scam_types: ['electricity_bill', 'kyc_bank'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    verdict: 'reported'
+  },
+  '0000000003': {
+    identifier_type: 'phone',
+    identifier_value: '+910000000003',
+    report_count: 18,
+    last_7_days_count: 6,
+    scam_types: ['job_task'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+    verdict: 'reported'
+  },
+  '0000000004': {
+    identifier_type: 'phone',
+    identifier_value: '+910000000004',
+    report_count: 11,
+    last_7_days_count: 3,
+    scam_types: ['loan_app'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
+    verdict: 'reported'
+  },
+  'kyc.refund.demo@oksbi': {
+    identifier_type: 'upi',
+    identifier_value: 'kyc.refund.demo@oksbi',
+    report_count: 84,
+    last_7_days_count: 36,
+    scam_types: ['kyc_bank', 'upi_payment_request'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    verdict: 'reported'
+  },
+  'sbi-kyc-update.example': {
+    identifier_type: 'url',
+    identifier_value: 'sbi-kyc-update.example',
+    report_count: 173,
+    last_7_days_count: 78,
+    scam_types: ['kyc_bank', 'phishing_link'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    verdict: 'reported'
+  },
+  'parcel-customs-fee.example': {
+    identifier_type: 'url',
+    identifier_value: 'parcel-customs-fee.example',
+    report_count: 37,
+    last_7_days_count: 12,
+    scam_types: ['delivery_courier'],
+    last_reported_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
     verdict: 'reported'
   }
 };
@@ -1091,20 +1118,20 @@ export const mockBackend = {
 
     // Fictional distribution of scam types
     const last7Days = [
-      { scam_type: 'Digital Arrest / Fake Police', count: 18 },
-      { scam_type: 'Electricity Bill Disconnection', count: 14 },
-      { scam_type: 'SBI / Bank KYC Pan Block', count: 13 },
-      { scam_type: 'Part-Time Telegram Job', count: 9 },
-      { scam_type: 'FedEx Customs Parcel', count: 7 },
-      { scam_type: 'Fake Video Call Blackmail', count: 4 }
+      { scam_type: 'digital_arrest', count: 42 },
+      { scam_type: 'kyc_bank', count: 78 },
+      { scam_type: 'upi_payment_request', count: 36 },
+      { scam_type: 'electricity_bill', count: 21 },
+      { scam_type: 'delivery_courier', count: 12 },
+      { scam_type: 'job_task', count: 6 }
     ];
 
     const topReported = [
-      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 52 },
-      { identifier_type: 'upi', identifier_value: 'kyc.update.sbi@***', report_count: 84 },
-      { identifier_type: 'url', identifier_value: 'https://sbi-kyc-verify.example/***', report_count: 173 },
+      { identifier_type: 'url', identifier_value: 'sbi-kyc-update.example', report_count: 173 },
       { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 94 },
-      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 46 }
+      { identifier_type: 'upi', identifier_value: 'kyc.refund.demo@***', report_count: 84 },
+      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 52 },
+      { identifier_type: 'url', identifier_value: 'parcel-customs-fee.example', report_count: 37 }
     ];
 
     return {

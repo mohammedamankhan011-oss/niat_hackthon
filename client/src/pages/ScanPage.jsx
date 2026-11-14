@@ -23,7 +23,7 @@ const SAMPLE_MESSAGES = {
     id: 'sbi_kyc',
     title: 'Fake SBI KYC',
     tag: 'Banking Scam',
-    text: 'Dear SBI User, your YONO account has been BLOCKED due to pending PAN card update. Please click here immediately to unblock your net banking: https://sbi-kyc-verify.example/login. Failure will lead to permanent suspension.'
+    text: 'Dear SBI User, your YONO account has been BLOCKED due to pending PAN card update. Please click here immediately to unblock your net banking: https://sbi-kyc-update.example/login. Failure will lead to permanent suspension.'
   },
   part_time_job: {
     id: 'part_time_job',

@@ -5,7 +5,7 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
   const [analysis, setAnalysis] = useState({
     risk_level: 'safe',
     risk_score: 0,
-    scam_type: 'safe_message',
+    scam_type: 'none',
     triggers: [],
     advice: 'Put the call on speaker. Analysis will activate as words are spoken.',
     say_this: ''
@@ -16,6 +16,11 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
 
   const lastAnalyzedTranscriptRef = useRef('');
   const isAnalyzingRef = useRef(false);
+  const transcriptRef = useRef(transcript);
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   const performAnalysis = useCallback(async (currentText) => {
     if (!currentText || currentText.trim().length === 0) return;
@@ -69,25 +74,19 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
     }
   }, [language, onScamTrigger]);
 
-  // Periodic 8 second check when listening or transcript active
+  // Periodic 15 second check when listening or demo is active
   useEffect(() => {
     if (!enabled) return;
 
     const interval = setInterval(() => {
-      if (transcript && transcript.trim().length > 0) {
-        performAnalysis(transcript);
+      const current = transcriptRef.current;
+      if (current && current.trim().length > 0) {
+        performAnalysis(current);
       }
-    }, 8000);
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [enabled, transcript, performAnalysis]);
-
-  // Also trigger initial analysis after first few words if nothing analyzed yet
-  useEffect(() => {
-    if (enabled && transcript.trim().length > 30 && !lastAnalyzedTranscriptRef.current) {
-      performAnalysis(transcript);
-    }
-  }, [enabled, transcript, performAnalysis]);
+  }, [enabled, performAnalysis]);
 
   const dismissAlert = useCallback(() => {
     setScamAlertActive(false);
@@ -99,7 +98,7 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
     setAnalysis({
       risk_level: 'safe',
       risk_score: 0,
-      scam_type: 'safe_message',
+      scam_type: 'none',
       triggers: [],
       advice: 'Put the call on speaker. Analysis will activate as words are spoken.',
       say_this: ''

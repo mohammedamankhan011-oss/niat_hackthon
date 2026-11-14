@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/endpoints';
 import { Loader } from '../components/Loader';
 import { ErrorBox } from '../components/ErrorBox';
+import { getScamTypeLabel } from '../utils/scamTypeLabels';
 import {
   ResponsiveContainer,
   BarChart,
@@ -55,7 +56,10 @@ export function TrendsPage() {
             total_scans: res.total_scans ?? 0,
             scams_caught: res.scams_caught ?? 0,
             total_reports: res.total_reports ?? 0,
-            last_7_days: res.last_7_days || [],
+            last_7_days: (res.last_7_days || []).map(item => ({
+              ...item,
+              scam_type: getScamTypeLabel(item.scam_type)
+            })),
             top_reported: res.top_reported || []
           });
         }

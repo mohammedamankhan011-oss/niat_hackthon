@@ -23,7 +23,7 @@ export function CheckPayPage() {
 
   // Reporting modal
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportScamType, setReportScamType] = useState('bank_kyc');
+  const [reportScamType, setReportScamType] = useState('kyc_bank');
   const [reporting, setReporting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
@@ -115,7 +115,7 @@ export function CheckPayPage() {
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="e.g. +91 00000 00001 or kyc.update.sbi@demoupi or https://sbi-kyc-verify.example/login"
+                placeholder="e.g. +910000000001 or kyc.refund.demo@oksbi or sbi-kyc-update.example"
                 className="w-full min-h-[58px] px-5 py-3 rounded-2xl border-2 border-slate-300 font-mono text-lg font-bold text-slate-900 focus:border-navy-900 focus:outline-none placeholder:font-sans placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
@@ -139,24 +139,31 @@ export function CheckPayPage() {
           </span>
           <button
             type="button"
-            onClick={() => handleSampleClick('+91 00000 00001')}
+            onClick={() => handleSampleClick('+910000000001')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            +91 00000 00001 (Electricity Scam)
+            +910000000001
           </button>
           <button
             type="button"
-            onClick={() => handleSampleClick('kyc.update.sbi@demoupi')}
+            onClick={() => handleSampleClick('kyc.refund.demo@oksbi')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            kyc.update.sbi@demoupi (Fake UPI)
+            kyc.refund.demo@oksbi
           </button>
           <button
             type="button"
-            onClick={() => handleSampleClick('https://sbi-kyc-verify.example/login')}
+            onClick={() => handleSampleClick('sbi-kyc-update.example')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            sbi-kyc-verify.example
+            sbi-kyc-update.example
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSampleClick('parcel-customs-fee.example')}
+            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
+          >
+            parcel-customs-fee.example
           </button>
         </div>
       </div>
@@ -336,13 +343,19 @@ export function CheckPayPage() {
                     onChange={(e) => setReportScamType(e.target.value)}
                     className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border-2 border-slate-300 text-base font-semibold focus:border-navy-900 focus:outline-none"
                   >
-                    <option value="bank_kyc">Bank / SBI KYC Phishing</option>
-                    <option value="electricity_bill">Electricity Bill Cutoff Threat</option>
+                    <option value="kyc_bank">Bank KYC Scam</option>
+                    <option value="electricity_bill">Electricity Bill Scam</option>
                     <option value="digital_arrest">Digital Arrest / Fake Police</option>
-                    <option value="part_time_job">Part-Time Job / Telegram Task</option>
-                    <option value="customs_courier">Customs / Drug Courier Extortion</option>
-                    <option value="lottery_kbc">Fake Lottery / Prize</option>
-                    <option value="other">Other Cyber Fraud</option>
+                    <option value="job_task">Part-Time Job / Task Scam</option>
+                    <option value="delivery_courier">Delivery / Customs Courier Scam</option>
+                    <option value="upi_payment_request">UPI Payment Request Scam</option>
+                    <option value="phishing_link">Phishing Link Scam</option>
+                    <option value="impersonation">Impersonation Scam</option>
+                    <option value="investment_trading">Investment / Trading Scam</option>
+                    <option value="lottery_prize">Lottery / Fake Prize Scam</option>
+                    <option value="loan_app">Predatory Loan App Scam</option>
+                    <option value="sextortion">Sextortion / Blackmail Scam</option>
+                    <option value="other">Other Scam</option>
                   </select>
                 </div>
 

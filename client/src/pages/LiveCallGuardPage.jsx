@@ -101,6 +101,7 @@ export function LiveCallGuardPage() {
       if (wordIndex >= allWords.length) {
         clearInterval(demoIntervalRef.current);
         setIsDemoRunning(false);
+        performAnalysis(accumulated);
         return;
       }
 
@@ -114,19 +115,7 @@ export function LiveCallGuardPage() {
       }
 
       setFullTranscript(accumulated);
-
-      // Trigger incremental analysis as critical keywords appear
-      const lower = accumulated.toLowerCase();
-      if (
-        word.toLowerCase().includes('narcotics') ||
-        word.toLowerCase().includes('arrest') ||
-        word.toLowerCase().includes('skype') ||
-        word.toLowerCase().includes('escrow') ||
-        wordIndex % 8 === 0
-      ) {
-        performAnalysis(accumulated);
-      }
-    }, 120); // Spoken word cadence
+    }, 150); // Spoken word cadence
   };
 
   const handleStopDemo = () => {
