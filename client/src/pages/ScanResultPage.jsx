@@ -7,6 +7,7 @@ import { VerdictBadge } from '../components/VerdictBadge';
 import { RedFlagCard } from '../components/RedFlagCard';
 import { CommunityMatches } from '../components/CommunityMatches';
 import { ReadAloudButton } from '../components/ReadAloudButton';
+import { ReportItForMePanel } from '../components/ReportItForMePanel';
 import { Loader } from '../components/Loader';
 import { ErrorBox } from '../components/ErrorBox';
 import { getScamTypeLabel, getScamTypeBadgeClass } from '../utils/scamTypeLabels';
@@ -39,15 +40,20 @@ export function ScanResultPage() {
   const [reportSuccess, setReportSuccess] = useState(false);
   const [reporting, setReporting] = useState(false);
 
+  // "Report It For Me" cybercrime complaint panel state
+  const [showComplaintPanel, setShowComplaintPanel] = useState(false);
+
   useEffect(() => {
     async function fetchScan() {
       try {
         setLoading(true);
         setError(null);
+        setShowComplaintPanel(false);
         const res = await api.scans.getById(id);
         if (res?.scan) {
           setScan(res.scan);
-          setCurrentLang(res.scan.language || initialLang || 'en');
+          const preferredLang = initialLang || res.scan.language || 'en';
+          setCurrentLang(preferredLang);
           // Pre-populate report identifier if available
           const firstId = res.scan.identifiers?.phones?.[0] ||
                           res.scan.identifiers?.upi_ids?.[0] ||
@@ -206,6 +212,27 @@ export function ScanResultPage() {
         {/* Community Reports Match Alert */}
         {scan.community_matches && scan.community_matches.length > 0 && (
           <CommunityMatches matches={scan.community_matches} />
+        )}
+
+        {/* Big "📝 Report It For Me" Button & Ready-Made Cybercrime Complaint Panel */}
+        {(scan.risk_level === 'scam' || scan.risk_level === 'suspicious') && (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowComplaintPanel((prev) => !prev)}
+              className="w-full min-h-[60px] px-6 py-4 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white rounded-2xl font-black text-xl sm:text-2xl shadow-lg flex items-center justify-center gap-3 transition-all focus:ring-4 focus:ring-red-300"
+            >
+              <span>📝 Report It For Me</span>
+            </button>
+
+            {showComplaintPanel && (
+              <ReportItForMePanel
+                scan={scan}
+                language={currentLang}
+                onClose={() => setShowComplaintPanel(false)}
+              />
+            )}
+          </div>
         )}
 
         {/* Language Switcher for Explanation */}

@@ -662,14 +662,57 @@ export function analyzeContentHeuristic(text = '', language = 'en') {
         'Never transfer your savings to any escrow verification account.'
       ];
     }
-  } else if (scamType === 'bank_kyc') {
-    summary = 'SBI / Bank KYC phishing scam designed to steal your net banking login and OTP.';
-    explanation = 'Banks will never send links asking you to submit PAN, Aadhaar, or passwords via SMS.';
-    actions = [
-      'Do not click the link or enter banking passwords.',
-      'Check your balance directly on official bank apps only.',
-      'Call your official bank customer care if you shared details.'
-    ];
+  } else if (scamType === 'bank_kyc' || scamType === 'kyc_bank') {
+    if (language === 'hi') {
+      summary = 'एसबीआई / बैंक केवाईसी (KYC) फ़िशिंग धोखाधड़ी जो आपके नेट बैंकिंग पासवर्ड और ओटीपी चुराने के लिए बनाई गई है।';
+      explanation = 'कोई भी बैंक कभी भी एसएमएस या व्हाट्सएप लिंक भेजकर पैन, आधार या पासवर्ड अपडेट करने को नहीं कहता।';
+      actions = [
+        'किसी भी अनजान लिंक पर क्लिक न करें और अपना पासवर्ड या ओटीपी दर्ज न करें।',
+        'केवल बैंक की आधिकारिक ऐप या शाखा में जाकर ही केवाईसी की जांच करें।',
+        'यदि जानकारी साझा कर दी है, तो तुरंत बैंक हेल्पलाइन और 1930 पर कॉल करें।'
+      ];
+    } else if (language === 'kn') {
+      summary = 'ನಿಮ್ಮ ನೆಟ್ ಬ್ಯಾಂಕಿಂಗ್ ಪಾಸ್‌ವರ್ಡ್ ಮತ್ತು OTP ಕದಿಯಲು ರೂಪಿಸಲಾದ ನಕಲಿ ಬ್ಯಾಂಕ್ KYC ಫಿಶಿಂಗ್ ವಂಚನೆ.';
+      explanation = 'ಬ್ಯಾಂಕ್‌ಗಳು ಎಂದಿಗೂ SMS ಅಥವಾ ವಾಟ್ಸಾಪ್ ಲಿಂಕ್ ಮೂಲಕ ಪ್ಯಾನ್, ಆಧಾರ್ ಅಥವಾ ಪಾಸ್‌ವರ್ಡ್ ನವೀಕರಿಸಲು ಕೇಳುವುದಿಲ್ಲ.';
+      actions = [
+        'ಯಾವುದೇ ಅನುಮಾನಾಸ್ಪದ ಲಿಂಕ್ ಕ್ಲಿಕ್ ಮಾಡಬೇಡಿ ಅಥವಾ ಬ್ಯಾಂಕ್ ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಬೇಡಿ.',
+        'ಅಧಿಕೃತ ಬ್ಯಾಂಕ್ ಆ್ಯಪ್ ಅಥವಾ ಶಾಖೆಯ ಮೂಲಕ ಮಾತ್ರ ಪರಿಶೀಲಿಸಿ.',
+        'ವಿವರಗಳನ್ನು ಹಂಚಿಕೊಂಡಿದ್ದರೆ ತಕ್ಷಣ ಬ್ಯಾಂಕ್ ಮತ್ತು 1930 ಸಹಾಯವಾಣಿಗೆ ಕರೆ ಮಾಡಿ.'
+      ];
+    } else {
+      summary = 'SBI / Bank KYC phishing scam designed to steal your net banking login and OTP.';
+      explanation = 'Banks will never send links asking you to submit PAN, Aadhaar, or passwords via SMS.';
+      actions = [
+        'Do not click the link or enter banking passwords.',
+        'Check your balance directly on official bank apps only.',
+        'Call your official bank customer care if you shared details.'
+      ];
+    }
+  } else if (scamType === 'part_time_job' || scamType === 'job_task') {
+    if (language === 'hi') {
+      summary = 'टेलीग्राम और यूट्यूब लाइक के नाम पर पार्ट-टाइम जॉब और प्रीपेड टास्क धोखाधड़ी।';
+      explanation = 'ठग शुरू में 150-500 रुपये देकर भरोसा जीतते हैं और फिर बड़े टास्क के नाम पर हजारों रुपये जमा करवाकर ब्लॉक कर देते हैं।';
+      actions = [
+        'टेलीग्राम आईडी को तुरंत ब्लॉक और रिपोर्ट करें।',
+        'कमाई निकालने या रजिस्ट्रेशन के नाम पर कोई पैसा न भेजें।',
+        'बोनस के लालच में अपनी बैंक जानकारी साझा न करें।'
+      ];
+    } else if (language === 'kn') {
+      summary = 'ಟೆಲಿಗ್ರಾಮ್ ಮತ್ತು ಯೂಟ್ಯೂಬ್ ಲೈಕ್ ಹೆಸರಿನಲ್ಲಿ ನಡೆಯುವ ಪಾರ್ಟ್-ಟೈಮ್ ಉದ್ಯೋಗ ಮತ್ತು ಪ್ರಿಪೇಯ್ಡ್ ಟಾಸ್ಕ್ ವಂಚನೆ.';
+      explanation = 'ವಂಚಕರು ಮೊದಲು ಸಣ್ಣ ಮೊತ್ತವನ್ನು ನೀಡಿ ನಂಬಿಕೆ ಗಳಿಸುತ್ತಾರೆ, ನಂತರ ಹೆಚ್ಚಿನ ಹಣ ಹೂಡಿಕೆ ಮಾಡಿಸಿ ಮೋಸ ಮಾಡುತ್ತಾರೆ.';
+      actions = [
+        'ಟೆಲಿಗ್ರಾಮ್ ಖಾತೆಯನ್ನು ತಕ್ಷಣ ಬ್ಲಾಕ್ ಮಾಡಿ ಮತ್ತು ವರದಿ ಮಾಡಿ.',
+        'ನೋಂದಣಿ ಶುಲ್ಕ ಅಥವಾ ಪ್ರಿಪೇಯ್ಡ್ ಟಾಸ್ಕ್ ಹೆಸರಿನಲ್ಲಿ ಯಾವುದೇ ಹಣ ಕಳುಹಿಸಬೇಡಿ.'
+      ];
+    } else {
+      summary = 'Task-based prepaid investment scam operating through Telegram masquerading as easy work-from-home employment.';
+      explanation = 'Scammers pay small initial amounts to build trust, then trap victims in prepaid tasks requiring large deposits that cannot be withdrawn.';
+      actions = [
+        'Block and report the Telegram account immediately.',
+        'Do not send any registration fee or prepaid security deposit.',
+        'Do not share your bank account or UPI details for joining bonuses.'
+      ];
+    }
   } else if (scamType === 'safe_message') {
     summary = 'Normal legitimate communication with standard operational details.';
     explanation = 'The text does not show any signs of phishing, extortion, or suspicious financial demands.';
@@ -975,7 +1018,7 @@ export const mockBackend = {
 
     const match = lookups[cleaned] || lookups[plainNum] || Object.values(lookups).find(l => {
       return l.identifier_value.toLowerCase().includes(cleaned) ||
-             (plainNum && l.identifier_value.replace(/[^0-9]/g, '').endsWith(plainNum));
+        (plainNum && l.identifier_value.replace(/[^0-9]/g, '').endsWith(plainNum));
     });
 
     if (match) {
