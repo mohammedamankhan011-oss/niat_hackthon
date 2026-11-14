@@ -1,7 +1,7 @@
 // Applies every SQL file in /supabase/migrations (in name order) to DATABASE_URL.
 // Usage:
 //   npm run migrate            -> schema only
-//   npm run migrate -- --seed  -> schema + /supabase/seed.sql
+//   npm run migrate -- --seed  -> schema + /supabase/seed.sql + /supabase/seeds/*.sql
 // The SQL files are idempotent, so running this again is safe.
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -16,6 +16,7 @@ dotenv.config({ path: path.resolve(here, '../.env'), quiet: true });
 const supabaseDir = path.resolve(here, '../../supabase');
 const migrationsDir = path.join(supabaseDir, 'migrations');
 const seedFile = path.join(supabaseDir, 'seed.sql');
+const seedsDir = path.join(supabaseDir, 'seeds');
 const withSeed = process.argv.includes('--seed');
 
 async function applyFile(client, file) {
@@ -55,6 +56,12 @@ async function main() {
     }
     if (withSeed) {
       await applyFile(client, seedFile);
+      const extraSeeds = (await readdir(seedsDir).catch(() => []))
+        .filter((name) => name.endsWith('.sql'))
+        .sort();
+      for (const name of extraSeeds) {
+        await applyFile(client, path.join(seedsDir, name));
+      }
     }
     console.log('migration complete');
   } finally {

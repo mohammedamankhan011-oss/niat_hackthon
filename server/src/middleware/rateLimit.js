@@ -43,3 +43,32 @@ export const explainLimiter = rateLimit({
   keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip)),
   handler: limitHandler('Too many explanation requests. Please wait a few minutes and try again.', 'RATE_LIMITED'),
 });
+
+// Live Call Guard polls every few seconds during a call.
+export const liveCallLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip)),
+  handler: limitHandler('Live call checks are coming in too fast. Please wait a moment.', 'RATE_LIMITED'),
+});
+
+// Public "Check before you pay" lookups.
+export const lookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: limitHandler('Too many checks. Please wait a minute and try again.', 'RATE_LIMITED'),
+});
+
+// Community reports: protects the database from spam.
+export const reportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip)),
+  handler: limitHandler('You have sent many reports. Please try again later.', 'RATE_LIMITED'),
+});

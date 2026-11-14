@@ -42,7 +42,11 @@ export const config = {
   gemini: {
     apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_MODEL,
-    fallbackModel: env.GEMINI_FALLBACK_MODEL,
+    // Comma-separated list, tried in order when the main model is busy or out of quota.
+    fallbackModels: (env.GEMINI_FALLBACK_MODEL ?? '')
+      .split(',')
+      .map((model) => model.trim())
+      .filter(Boolean),
     timeoutMs: 25_000,
   },
   supabase: {

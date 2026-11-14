@@ -3,12 +3,14 @@ node_modules/
 
 # Build output
 dist/
+client/dist/
 
 # Secrets (keep only the example file)
 .env
 .env.*
 !.env.example
 server/.env
+client/.env
 
 # Supabase CLI local state / temp files
 supabase/.temp/
