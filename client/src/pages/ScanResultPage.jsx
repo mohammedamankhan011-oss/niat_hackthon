@@ -398,7 +398,7 @@ export function ScanResultPage() {
                     required
                     value={reportValue}
                     onChange={(e) => setReportValue(e.target.value)}
-                    placeholder="+91 98765 43210 or scammer@upi"
+                    placeholder="+91 00000 00001 or kyc.update.sbi@demoupi"
                     className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border-2 border-slate-300 font-mono text-base focus:border-navy-900 focus:outline-none"
                   />
                 </div>

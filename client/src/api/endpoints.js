@@ -1,5 +1,5 @@
-import { apiClient, isMockMode, delay } from './client';
-import { mockBackend } from './mocks';
+import { apiClient, isMockMode, delay } from './client.js';
+import { mockBackend } from './mocks.js';
 
 export const api = {
   // Auth endpoints

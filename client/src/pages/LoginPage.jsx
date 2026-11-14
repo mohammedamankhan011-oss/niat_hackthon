@@ -11,7 +11,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState('aarav.patel@example.in');
+  const [email, setEmail] = useState('aarav.patel@example.com');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);

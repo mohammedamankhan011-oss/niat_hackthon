@@ -1,7 +1,7 @@
 /**
- * Production-ready mock backend for ScamShield with realistic Indian scam data.
- * Persists changes in localStorage so demo interactions (scans, reports, alerts, invites)
- * behave like a live database.
+ * Production-ready mock backend for ScamShield with fictional Indian demo scam data.
+ * Persists changes in localStorage (with in-memory fallback for test runners)
+ * so demo interactions behave like a live database.
  */
 
 const STORAGE_KEYS = {
@@ -14,11 +14,11 @@ const STORAGE_KEYS = {
   LOOKUPS: 'scamshield_lookups'
 };
 
-// Initial realistic seed data
+// Clearly fictional demo user
 const SEED_USER = {
   id: 'usr_default_01',
   name: 'Aarav Patel',
-  email: 'aarav.patel@example.in',
+  email: 'aarav.patel@example.com',
   preferred_language: 'en',
   created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString()
 };
@@ -27,7 +27,7 @@ const SEED_SCANS = [
   {
     id: 'scan_001',
     input_type: 'text',
-    message_text: 'Dear Customer, your electricity power will be DISCONNECTED tonight at 9:30 PM from the electricity office because your previous month bill was not updated. Please immediately contact our electricity officer Rahul Sharma at 9876543210. Thank you.',
+    message_text: 'Dear Customer, your electricity power will be DISCONNECTED tonight at 9:30 PM from the electricity office because your previous month bill was not updated. Please immediately contact our electricity officer Rahul Sharma at 0000000001. Thank you.',
     risk_level: 'scam',
     risk_score: 94,
     scam_type: 'electricity_bill',
@@ -41,7 +41,7 @@ const SEED_SCANS = [
       },
       {
         flag: 'Unverified Personal Mobile Number',
-        evidence: 'officer Rahul Sharma at 9876543210',
+        evidence: 'officer Rahul Sharma at 0000000001',
         explanation: 'Official disconnections are handled through registered electricity board portals or sub-division offices, never via personal WhatsApp or mobile numbers.'
       },
       {
@@ -52,13 +52,13 @@ const SEED_SCANS = [
     ],
     safe_reasons: [],
     actions: [
-      'Do not call 9876543210 or reply to this message.',
-      'Check your official electricity provider app or website (e.g. BESCOM / Mahavitaran) to verify bill status.',
+      'Do not call +91 00000 00001 or reply to this message.',
+      'Check your official electricity provider app or website to verify bill status.',
       'Never install any .apk or QuickSupport apps suggested by the caller.',
       'Report this number on the Chakshu portal / cybercrime.gov.in.'
     ],
     identifiers: {
-      phones: ['+91 98765 43210'],
+      phones: ['+91 00000 00001'],
       upi_ids: [],
       urls: [],
       emails: []
@@ -66,7 +66,7 @@ const SEED_SCANS = [
     community_matches: [
       {
         identifier_type: 'phone',
-        identifier_value: '+91 98765 43210',
+        identifier_value: '+91 00000 00001',
         report_count: 42,
         last_7_days_count: 18
       }
@@ -108,7 +108,7 @@ const SEED_SCANS = [
       'Never transfer funds to any "Supreme Court / RBI escrow account".'
     ],
     identifiers: {
-      phones: ['+91 91234 56789'],
+      phones: ['+91 00000 00002'],
       upi_ids: [],
       urls: [],
       emails: []
@@ -116,7 +116,7 @@ const SEED_SCANS = [
     community_matches: [
       {
         identifier_type: 'phone',
-        identifier_value: '+91 91234 56789',
+        identifier_value: '+91 00000 00002',
         report_count: 89,
         last_7_days_count: 34
       }
@@ -127,17 +127,17 @@ const SEED_SCANS = [
   {
     id: 'scan_003',
     input_type: 'image',
-    message_text: 'Dear SBI User, your YONO account has been BLOCKED due to incomplete PAN KYC. Please click here to unblock your net banking: https://sbi-kyc-update-pan.online/portal. Failure will lead to permanent account suspension.',
+    message_text: 'Dear SBI User, your YONO account has been BLOCKED due to incomplete PAN KYC. Please click here to unblock your net banking: https://sbi-kyc-verify.example/login. Failure will lead to permanent account suspension.',
     risk_level: 'scam',
     risk_score: 96,
     scam_type: 'bank_kyc',
     summary: 'Phishing attack mimicking State Bank of India with a fraudulent URL aimed at stealing net banking credentials and OTPs.',
-    explanation: 'SBI strictly uses "sbi.co.in" or official YONO app. Any link ending in ".online", ".xyz", ".top", or ".site" is a malicious phishing website created to harvest your internet banking username, password, and OTP.',
+    explanation: 'SBI strictly uses "sbi.co.in" or official YONO app. Any link ending in ".example", ".online", ".xyz", ".top", or ".site" is a malicious phishing website created to harvest your internet banking username, password, and OTP.',
     red_flags: [
       {
         flag: 'Malicious Phishing Domain',
-        evidence: 'https://sbi-kyc-update-pan.online/portal',
-        explanation: 'Official SBI domains end in sbi.co.in. The domain .online was registered recently by scammers.'
+        evidence: 'https://sbi-kyc-verify.example/login',
+        explanation: 'Official SBI domains end in sbi.co.in. The domain .example was created for demonstration.'
       },
       {
         flag: 'Panic-inducing Suspension Warning',
@@ -148,19 +148,19 @@ const SEED_SCANS = [
     safe_reasons: [],
     actions: [
       'Do not click the link or enter your SBI username/password/OTP.',
-      'Forward the SMS to 9223008333 (SBI official cyber fraud helpline).',
-      'If you already entered details, call SBI customer care (1800 1234) immediately to freeze net banking.'
+      'Forward the SMS to official bank cyber fraud helpline.',
+      'If you already entered details, call your bank customer care immediately to freeze net banking.'
     ],
     identifiers: {
       phones: [],
       upi_ids: [],
-      urls: ['https://sbi-kyc-update-pan.online/portal'],
+      urls: ['https://sbi-kyc-verify.example/login'],
       emails: []
     },
     community_matches: [
       {
         identifier_type: 'url',
-        identifier_value: 'https://sbi-kyc-update-pan.online/portal',
+        identifier_value: 'https://sbi-kyc-verify.example/login',
         report_count: 156,
         last_7_days_count: 67
       }
@@ -215,7 +215,7 @@ const SEED_SCANS = [
   {
     id: 'scan_005',
     input_type: 'text',
-    message_text: 'Your Swiggy order #9823101 has been picked up by delivery partner Ramesh. Track live delivery on your Swiggy app. OTP for delivery is 4821.',
+    message_text: 'Your delivery order #9823101 has been picked up by delivery partner. Track live delivery on your app. OTP for delivery is 4821.',
     risk_level: 'safe',
     risk_score: 5,
     scam_type: 'safe_message',
@@ -249,7 +249,7 @@ const SEED_ALERTS = [
     created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     person: {
       name: 'Amma (Mother)',
-      email: 'amma.patel@family.in'
+      email: 'amma.patel@example.com'
     },
     scan: {
       id: 'scan_002',
@@ -266,7 +266,7 @@ const SEED_ALERTS = [
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     person: {
       name: 'Dad',
-      email: 'suresh.patel@family.in'
+      email: 'suresh.patel@example.com'
     },
     scan: {
       id: 'scan_001',
@@ -287,7 +287,7 @@ const SEED_GUARDIANS = {
       other_user: {
         id: 'usr_g1',
         name: 'Rohan Patel (Brother)',
-        email: 'rohan.patel@gmail.com'
+        email: 'rohan.patel@example.com'
       }
     }
   ],
@@ -298,7 +298,7 @@ const SEED_GUARDIANS = {
       other_user: {
         id: 'usr_p1',
         name: 'Suresh Patel (Dad)',
-        email: 'suresh.patel@family.in'
+        email: 'suresh.patel@example.com'
       }
     },
     {
@@ -307,7 +307,7 @@ const SEED_GUARDIANS = {
       other_user: {
         id: 'usr_p2',
         name: 'Kavita Patel (Amma)',
-        email: 'amma.patel@family.in'
+        email: 'amma.patel@example.com'
       }
     }
   ],
@@ -318,43 +318,43 @@ const SEED_GUARDIANS = {
       other_user: {
         id: 'usr_uncle',
         name: 'Mahesh Uncle',
-        email: 'mahesh.k@outlook.com'
+        email: 'mahesh.k@example.com'
       }
     }
   ]
 };
 
 const SEED_LOOKUPS = {
-  '9876543210': {
+  '0000000001': {
     identifier_type: 'phone',
-    identifier_value: '+91 98765 43210',
+    identifier_value: '+91 00000 00001',
     report_count: 52,
     last_7_days_count: 21,
     scam_types: ['electricity_bill', 'bank_kyc'],
     last_reported_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     verdict: 'reported'
   },
-  'refund.helpdesk@oksbi': {
+  'kyc.update.sbi@demoupi': {
     identifier_type: 'upi',
-    identifier_value: 'refund.helpdesk@oksbi',
+    identifier_value: 'kyc.update.sbi@demoupi',
     report_count: 84,
     last_7_days_count: 36,
     scam_types: ['bank_kyc', 'part_time_job'],
     last_reported_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
     verdict: 'reported'
   },
-  'sbi-kyc-update-pan.online': {
+  'sbi-kyc-verify.example': {
     identifier_type: 'url',
-    identifier_value: 'https://sbi-kyc-update-pan.online',
+    identifier_value: 'https://sbi-kyc-verify.example/login',
     report_count: 173,
     last_7_days_count: 78,
     scam_types: ['bank_kyc'],
     last_reported_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     verdict: 'reported'
   },
-  '9123456789': {
+  '0000000002': {
     identifier_type: 'phone',
-    identifier_value: '+91 91234 56789',
+    identifier_value: '+91 00000 00002',
     report_count: 94,
     last_7_days_count: 42,
     scam_types: ['digital_arrest', 'customs_courier'],
@@ -363,12 +363,17 @@ const SEED_LOOKUPS = {
   }
 };
 
-// Storage helper
+// Storage helper with in-memory fallback for test runners
+const memoryStore = {};
+
 function loadStorage(key, fallback) {
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw);
+    if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function') {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    }
+    return memoryStore[key] ? JSON.parse(memoryStore[key]) : fallback;
   } catch (e) {
     return fallback;
   }
@@ -376,7 +381,11 @@ function loadStorage(key, fallback) {
 
 function saveStorage(key, data) {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.setItem === 'function') {
+      localStorage.setItem(key, serialized);
+    }
+    memoryStore[key] = serialized;
   } catch (e) {
     console.warn('Storage save failed:', e);
   }
@@ -389,14 +398,14 @@ export function extractIdentifiers(text = '') {
   const urls = [];
   const emails = [];
 
-  // Match Indian phone numbers: +91 xxxxx xxxxx or 10-digit starting 6-9
-  const phoneRegex = /(?:\+91[\-\s]?)?[6-9]\d{9}\b/g;
+  // Match Indian phone numbers: +91 xxxxx xxxxx or 10-digit starting 6-9, or demo numbers like 0000000001
+  const phoneRegex = /(?:\+91[\-\s]?)?(?:[6-9]\d{9}|00000[\s\-]?0000[0-9])\b/g;
   let pMatch;
   while ((pMatch = phoneRegex.exec(text)) !== null) {
     if (!phones.includes(pMatch[0])) phones.push(pMatch[0]);
   }
 
-  // Match UPI handles: name@bank
+  // Match UPI handles: name@bank or name@demoupi
   const upiRegex = /[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/g;
   let uMatch;
   while ((uMatch = upiRegex.exec(text)) !== null) {
@@ -406,7 +415,7 @@ export function extractIdentifiers(text = '') {
   }
 
   // Match URLs
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(online|xyz|top|site|cc|info|biz|tk|ml)\b[^\s]*)/gi;
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(example|online|xyz|top|site|cc|info|biz|tk|ml)\b[^\s]*)/gi;
   let urlMatch;
   while ((urlMatch = urlRegex.exec(text)) !== null) {
     if (!urls.includes(urlMatch[0])) urls.push(urlMatch[0]);
@@ -451,6 +460,20 @@ export function analyzeContentHeuristic(text = '', language = 'en') {
         last_7_days_count: lookups[upi].last_7_days_count
       });
       riskScore = Math.max(riskScore, 92);
+    }
+  }
+
+  for (const url of identifiers.urls) {
+    const cleanUrl = url.replace(/^https?:\/\//, '').split('/')[0];
+    if (lookups[cleanUrl] || lookups[url]) {
+      const match = lookups[cleanUrl] || lookups[url];
+      communityMatches.push({
+        identifier_type: 'url',
+        identifier_value: url,
+        report_count: match.report_count,
+        last_7_days_count: match.last_7_days_count
+      });
+      riskScore = Math.max(riskScore, 95);
     }
   }
 
@@ -565,11 +588,11 @@ export function analyzeContentHeuristic(text = '', language = 'en') {
   if (scamType === 'electricity_bill') {
     if (language === 'hi') {
       summary = 'फर्जी बिजली बिल कटने की धमकी। यह आपको कॉल करके पैसे ठगने की चाल है।';
-      explanation = 'बिजली विभाग (Electricity Board) कभी भी रात 9:30 बजे अचानक लाइन काटने का मैसेज नहीं भेजता। न ही किसी निजी मोबाइल नंबर पर कॉल करने को कहता है।';
+      explanation = 'बिजली विभाग कभी भी अचानक लाइन काटने का मैसेज नहीं भेजता। न ही किसी निजी मोबाइल नंबर पर कॉल करने को कहता है।';
       actions = [
         'इस नंबर पर कॉल या मैसेज बिल्कुल न करें।',
         'बिजली कंपनी की आधिकारिक ऐप या वेबसाइट पर जाकर बिल चेक करें।',
-        'कोई भी ऐप (AnyDesk / QuickSupport) डाउनलोड न करें।'
+        'कोई भी ऐप डाउनलोड न करें।'
       ];
     } else if (language === 'kn') {
       summary = 'ವಿದ್ಯುತ್ ಕಡಿತಗೊಳಿಸುವ ನಕಲಿ ಬೆದರಿಕೆ. ಹಣ ವಂಚಿಸಲು ಕಳುಹಿಸಲಾದ ಸಂದೇಶ.';
@@ -583,7 +606,7 @@ export function analyzeContentHeuristic(text = '', language = 'en') {
       explanation = 'Electricity boards never send urgent disconnection threats via personal 10-digit mobile numbers.';
       actions = [
         'Do not call the mobile number in the message.',
-        'Check bill status on your electricity provider’s official website or app.',
+        'Check bill status on your electricity provider official website or app.',
         'Never install screen-sharing apps like AnyDesk.'
       ];
     }
@@ -609,7 +632,7 @@ export function analyzeContentHeuristic(text = '', language = 'en') {
       actions = [
         'Hang up immediately! You are in zero legal danger.',
         'Dial 1930 to report this caller to the National Cyber Crime portal.',
-        'Never transfer your savings to any "escrow verification account".'
+        'Never transfer your savings to any escrow verification account.'
       ];
     }
   } else if (scamType === 'bank_kyc') {
@@ -808,7 +831,7 @@ export const mockBackend = {
         created_at: new Date().toISOString(),
         person: {
           name: 'You (Aarav)',
-          email: 'aarav.patel@example.in'
+          email: 'aarav.patel@example.com'
         },
         scan: {
           id: newScan.id,
@@ -900,7 +923,7 @@ export const mockBackend = {
         created_at: new Date().toISOString(),
         person: {
           name: 'Amma (Mother)',
-          email: 'amma.patel@family.in'
+          email: 'amma.patel@example.com'
         },
         scan: {
           id: newScan.id,
@@ -935,7 +958,7 @@ export const mockBackend = {
     // Determine type
     let type = 'phone';
     if (value.includes('@') && !value.includes('.com')) type = 'upi';
-    else if (value.includes('http') || value.includes('.com') || value.includes('.in') || value.includes('.online')) type = 'url';
+    else if (value.includes('http') || value.includes('.com') || value.includes('.in') || value.includes('.example')) type = 'url';
 
     return {
       identifier_type: type,
@@ -977,7 +1000,7 @@ export const mockBackend = {
     } else {
       let type = 'phone';
       if (value.includes('@')) type = 'upi';
-      else if (value.includes('.') && (value.includes('http') || value.includes('.com') || value.includes('.online'))) type = 'url';
+      else if (value.includes('.') && (value.includes('http') || value.includes('.example') || value.includes('.com'))) type = 'url';
 
       lookups[key] = {
         identifier_type: type,
@@ -1060,26 +1083,28 @@ export const mockBackend = {
     const reports = loadStorage(STORAGE_KEYS.REPORTS, []);
     const lookups = loadStorage(STORAGE_KEYS.LOOKUPS, SEED_LOOKUPS);
 
-    const totalScans = 14280 + scans.length;
-    const scamsCaught = 11450 + scans.filter(s => s.risk_level === 'scam').length;
-    const totalReports = 8920 + reports.length;
+    // Calculate real numbers from actual data records
+    const totalScans = scans.length;
+    const scamsCaught = scans.filter(s => s.risk_level === 'scam').length;
+    const lookupReportsCount = Object.values(lookups).reduce((sum, item) => sum + (item.report_count || 0), 0);
+    const totalReports = reports.length + lookupReportsCount;
 
-    // Aggregate counts for last 7 days
+    // Fictional distribution of scam types
     const last7Days = [
-      { scam_type: 'Digital Arrest / Fake Police', count: 1840 },
-      { scam_type: 'Electricity Bill Disconnection', count: 1420 },
-      { scam_type: 'SBI / Bank KYC Pan Block', count: 1310 },
-      { scam_type: 'Part-Time Telegram Job', count: 980 },
-      { scam_type: 'FedEx Customs Parcel', count: 750 },
-      { scam_type: 'Fake Video Call Blackmail', count: 430 }
+      { scam_type: 'Digital Arrest / Fake Police', count: 18 },
+      { scam_type: 'Electricity Bill Disconnection', count: 14 },
+      { scam_type: 'SBI / Bank KYC Pan Block', count: 13 },
+      { scam_type: 'Part-Time Telegram Job', count: 9 },
+      { scam_type: 'FedEx Customs Parcel', count: 7 },
+      { scam_type: 'Fake Video Call Blackmail', count: 4 }
     ];
 
     const topReported = [
-      { identifier_type: 'phone', identifier_value: '+91 98765 *****', report_count: 52 },
-      { identifier_type: 'upi', identifier_value: 'refund.helpdesk@***', report_count: 84 },
-      { identifier_type: 'url', identifier_value: 'https://sbi-kyc-update-***.online', report_count: 173 },
-      { identifier_type: 'phone', identifier_value: '+91 91234 *****', report_count: 94 },
-      { identifier_type: 'phone', identifier_value: '+91 88776 *****', report_count: 46 }
+      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 52 },
+      { identifier_type: 'upi', identifier_value: 'kyc.update.sbi@***', report_count: 84 },
+      { identifier_type: 'url', identifier_value: 'https://sbi-kyc-verify.example/***', report_count: 173 },
+      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 94 },
+      { identifier_type: 'phone', identifier_value: '+91 00000 *****', report_count: 46 }
     ];
 
     return {

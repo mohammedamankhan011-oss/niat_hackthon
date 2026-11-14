@@ -27,8 +27,8 @@ export function Navbar() {
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: ShieldCheck, authOnly: true },
     { to: '/scan', label: 'Check Message', icon: ShieldCheck },
-    { to: '/call', label: '📞 Call Guard', icon: PhoneCall, highlight: true },
-    { to: '/check', label: 'Check Pay', icon: CreditCard },
+    { to: '/call', label: '📞 Call Guard', icon: PhoneCall, highlight: true, authOnly: true },
+    { to: '/check', label: 'Check Pay', icon: CreditCard, authOnly: true },
     { to: '/trends', label: 'Trends', icon: TrendingUp },
     { to: '/history', label: 'History', icon: History, authOnly: true },
     { to: '/family', label: 'Family', icon: Users, authOnly: true },

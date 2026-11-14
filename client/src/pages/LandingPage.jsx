@@ -19,11 +19,7 @@ import {
 
 export function LandingPage() {
   const { language, isAuthenticated } = useAuth();
-  const [trends, setTrends] = useState({
-    total_scans: 14350,
-    scams_caught: 11480,
-    total_reports: 8940
-  });
+  const [trends, setTrends] = useState(null);
 
   useEffect(() => {
     async function loadTrends() {
@@ -31,9 +27,9 @@ export function LandingPage() {
         const data = await api.trends.get();
         if (data) {
           setTrends({
-            total_scans: data.total_scans || 14350,
-            scams_caught: data.scams_caught || 11480,
-            total_reports: data.total_reports || 8940
+            total_scans: data.total_scans ?? 0,
+            scams_caught: data.scams_caught ?? 0,
+            total_reports: data.total_reports ?? 0
           });
         }
       } catch (e) {
@@ -49,7 +45,7 @@ export function LandingPage() {
       <section className="text-center max-w-4xl mx-auto px-4 space-y-6">
         <div className="inline-flex items-center gap-2 bg-navy-50 border border-navy-200 px-4 py-2 rounded-full text-navy-900 font-bold text-sm sm:text-base">
           <ShieldCheck className="w-5 h-5 text-emerald-600" />
-          <span>India’s Verified Digital Protection Shield</span>
+          <span>India’s Digital Protection Shield</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-black text-navy-950 tracking-tight leading-tight">
@@ -84,7 +80,7 @@ export function LandingPage() {
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-black text-navy-900">
-                {trends.total_scans.toLocaleString('en-IN')}+
+                {trends ? trends.total_scans.toLocaleString('en-IN') : '—'}
               </div>
               <div className="text-sm sm:text-base font-bold text-slate-600 flex items-center justify-center gap-1.5">
                 <Activity className="w-4 h-4 text-navy-600" />
@@ -94,7 +90,7 @@ export function LandingPage() {
 
             <div className="space-y-1 border-t sm:border-t-0 sm:border-l sm:border-r border-slate-200 pt-4 sm:pt-0">
               <div className="text-3xl sm:text-4xl font-black text-red-600">
-                {trends.scams_caught.toLocaleString('en-IN')}+
+                {trends ? trends.scams_caught.toLocaleString('en-IN') : '—'}
               </div>
               <div className="text-sm sm:text-base font-bold text-slate-600 flex items-center justify-center gap-1.5">
                 <ShieldAlert className="w-4 h-4 text-red-500" />
@@ -104,7 +100,7 @@ export function LandingPage() {
 
             <div className="space-y-1 border-t sm:border-t-0 border-slate-200 pt-4 sm:pt-0">
               <div className="text-3xl sm:text-4xl font-black text-emerald-600">
-                {trends.total_reports.toLocaleString('en-IN')}+
+                {trends ? trends.total_reports.toLocaleString('en-IN') : '—'}
               </div>
               <div className="text-sm sm:text-base font-bold text-slate-600 flex items-center justify-center gap-1.5">
                 <Users className="w-4 h-4 text-emerald-600" />
@@ -188,7 +184,7 @@ export function LandingPage() {
                 3. {t('checkPay', language)}
               </h3>
               <p className="text-base text-slate-700 leading-relaxed">
-                {t('checkPayDesc', language)} Instant lookup against 100,000+ fraud reports filed by Indian citizens before you send money.
+                {t('checkPayDesc', language)} Instant lookup against fraud reports filed by Indian citizens before you send money.
               </p>
             </div>
             <div className="pt-6">

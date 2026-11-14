@@ -35,9 +35,9 @@ const BAR_COLORS = [
 
 export function TrendsPage() {
   const [data, setData] = useState({
-    total_scans: 14350,
-    scams_caught: 11480,
-    total_reports: 8940,
+    total_scans: 0,
+    scams_caught: 0,
+    total_reports: 0,
     last_7_days: [],
     top_reported: []
   });
@@ -51,7 +51,13 @@ export function TrendsPage() {
         setError(null);
         const res = await api.trends.get();
         if (res) {
-          setData(res);
+          setData({
+            total_scans: res.total_scans ?? 0,
+            scams_caught: res.scams_caught ?? 0,
+            total_reports: res.total_reports ?? 0,
+            last_7_days: res.last_7_days || [],
+            top_reported: res.top_reported || []
+          });
         }
       } catch (err) {
         console.error('Failed to load trends:', err);
@@ -92,7 +98,7 @@ export function TrendsPage() {
             <Activity className="w-6 h-6 text-navy-600" />
           </div>
           <div className="text-4xl font-black text-navy-950">
-            {data.total_scans.toLocaleString('en-IN')}+
+            {data.total_scans != null ? data.total_scans.toLocaleString('en-IN') : '0'}
           </div>
           <p className="text-sm text-slate-600 font-medium">
             Messages, calls, and payment identifiers scanned across India
@@ -107,7 +113,7 @@ export function TrendsPage() {
             <ShieldAlert className="w-6 h-6 text-red-600" />
           </div>
           <div className="text-4xl font-black text-red-600">
-            {data.scams_caught.toLocaleString('en-IN')}+
+            {data.scams_caught != null ? data.scams_caught.toLocaleString('en-IN') : '0'}
           </div>
           <p className="text-sm text-slate-600 font-medium">
             High-severity extortion calls and phishing links stopped
@@ -122,7 +128,7 @@ export function TrendsPage() {
             <Users className="w-6 h-6 text-emerald-600" />
           </div>
           <div className="text-4xl font-black text-emerald-600">
-            {data.total_reports.toLocaleString('en-IN')}+
+            {data.total_reports != null ? data.total_reports.toLocaleString('en-IN') : '0'}
           </div>
           <p className="text-sm text-slate-600 font-medium">
             Crowdsourced malicious numbers and UPI IDs logged

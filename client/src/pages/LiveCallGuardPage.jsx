@@ -267,7 +267,7 @@ export function LiveCallGuardPage() {
             Live Call Scam Interceptor
           </h1>
           <p className="text-lg text-slate-100 font-medium max-w-2xl">
-            Put the caller on speaker phone. Our on-device AI listens in real-time and warns you immediately if they attempt a Digital Arrest, Police extortion, or Bank OTP scam.
+            Put the caller on speaker phone. Our AI-powered guard listens in real-time and warns you immediately if they attempt a Digital Arrest, Police extortion, or Bank OTP scam.
           </p>
         </div>
 

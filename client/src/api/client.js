@@ -1,8 +1,10 @@
 import axios from 'axios';
-import { mockBackend } from './mocks';
+import { mockBackend } from './mocks.js';
 
-export const isMockMode = import.meta.env.VITE_USE_MOCK === 'true' || import.meta.env.VITE_USE_MOCK === true;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+export const isMockMode = typeof import.meta !== 'undefined' && import.meta.env
+  ? (import.meta.env.VITE_USE_MOCK === 'true' || import.meta.env.VITE_USE_MOCK === true)
+  : true;
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:5000';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

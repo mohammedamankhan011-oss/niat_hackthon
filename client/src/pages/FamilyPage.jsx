@@ -138,7 +138,7 @@ export function FamilyPage() {
               required
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="e.g. rohan.patel@gmail.com"
+              placeholder="e.g. rohan.patel@example.com"
               className="w-full min-h-[50px] px-4 py-3 rounded-xl border-2 border-slate-300 text-lg font-medium focus:border-navy-900 focus:outline-none"
             />
           </div>

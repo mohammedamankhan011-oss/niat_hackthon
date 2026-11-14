@@ -115,7 +115,7 @@ export function CheckPayPage() {
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="e.g. 9876543210 or user@oksbi or https://..."
+                placeholder="e.g. +91 00000 00001 or kyc.update.sbi@demoupi or https://sbi-kyc-verify.example/login"
                 className="w-full min-h-[58px] px-5 py-3 rounded-2xl border-2 border-slate-300 font-mono text-lg font-bold text-slate-900 focus:border-navy-900 focus:outline-none placeholder:font-sans placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
@@ -139,24 +139,24 @@ export function CheckPayPage() {
           </span>
           <button
             type="button"
-            onClick={() => handleSampleClick('9876543210')}
+            onClick={() => handleSampleClick('+91 00000 00001')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            9876543210 (Electricity Scam)
+            +91 00000 00001 (Electricity Scam)
           </button>
           <button
             type="button"
-            onClick={() => handleSampleClick('refund.helpdesk@oksbi')}
+            onClick={() => handleSampleClick('kyc.update.sbi@demoupi')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            refund.helpdesk@oksbi (Fake UPI)
+            kyc.update.sbi@demoupi (Fake UPI)
           </button>
           <button
             type="button"
-            onClick={() => handleSampleClick('https://sbi-kyc-update-pan.online')}
+            onClick={() => handleSampleClick('https://sbi-kyc-verify.example/login')}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
           >
-            sbi-kyc-update-pan.online
+            sbi-kyc-verify.example
           </button>
         </div>
       </div>
