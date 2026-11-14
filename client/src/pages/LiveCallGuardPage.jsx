@@ -115,7 +115,7 @@ export function LiveCallGuardPage() {
       }
 
       setFullTranscript(accumulated);
-    }, 150); // Spoken word cadence
+    }, 110); // Spoken word cadence
   };
 
   const handleStopDemo = () => {

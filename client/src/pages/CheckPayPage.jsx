@@ -27,9 +27,8 @@ export function CheckPayPage() {
   const [reporting, setReporting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-    const query = searchValue.trim();
+  const runLookup = async (rawValue) => {
+    const query = (rawValue !== undefined ? rawValue : searchValue).trim();
     if (!query) {
       setError('Please paste a phone number, UPI ID, or website link.');
       return;
@@ -50,9 +49,14 @@ export function CheckPayPage() {
     }
   };
 
-  const handleSampleClick = (sample) => {
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    await runLookup(searchValue);
+  };
+
+  const handleSampleClick = async (sample) => {
     setSearchValue(sample);
-    setError(null);
+    await runLookup(sample);
   };
 
   const handleReportSubmit = async (e) => {

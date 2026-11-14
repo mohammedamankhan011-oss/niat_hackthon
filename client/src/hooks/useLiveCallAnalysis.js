@@ -22,6 +22,8 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
     transcriptRef.current = transcript;
   }, [transcript]);
 
+  const hasWords = Boolean(transcript && transcript.trim().length > 0);
+
   const performAnalysis = useCallback(async (currentText) => {
     if (!currentText || currentText.trim().length === 0) return;
     if (isAnalyzingRef.current) return;
@@ -74,19 +76,33 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
     }
   }, [language, onScamTrigger]);
 
-  // Periodic 15 second check when listening or demo is active
+  // Run the first AI analysis 5 seconds after words start, then every 15 seconds after that
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !hasWords) return;
 
-    const interval = setInterval(() => {
+    let recurringInterval = null;
+
+    const firstTimeout = setTimeout(() => {
       const current = transcriptRef.current;
       if (current && current.trim().length > 0) {
         performAnalysis(current);
       }
-    }, 15000);
 
-    return () => clearInterval(interval);
-  }, [enabled, performAnalysis]);
+      recurringInterval = setInterval(() => {
+        const nextText = transcriptRef.current;
+        if (nextText && nextText.trim().length > 0) {
+          performAnalysis(nextText);
+        }
+      }, 15000);
+    }, 5000);
+
+    return () => {
+      clearTimeout(firstTimeout);
+      if (recurringInterval) {
+        clearInterval(recurringInterval);
+      }
+    };
+  }, [enabled, hasWords, performAnalysis]);
 
   const dismissAlert = useCallback(() => {
     setScamAlertActive(false);
