@@ -25,7 +25,7 @@ export function LanguagePicker({ compact = false, onChange }) {
             type="button"
             onClick={() => handleSelect(lang.code)}
             aria-label={`Select language ${lang.label}`}
-            className={`min-h-[40px] px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
+            className={`min-h-[48px] px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
               language === lang.code
                 ? 'bg-navy-900 text-white shadow-sm'
                 : 'text-slate-700 hover:bg-slate-200'

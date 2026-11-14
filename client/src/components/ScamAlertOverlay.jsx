@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { PhoneOff, Volume2, AlertOctagon, ShieldAlert, ArrowRight } from 'lucide-react';
+import { PhoneOff, Volume2, AlertOctagon, ArrowRight } from 'lucide-react';
 import { useSpeech } from '../hooks/useSpeech';
 
 export function ScamAlertOverlay({
@@ -16,7 +16,6 @@ export function ScamAlertOverlay({
   // Speak say_this automatically on trigger as specified in spec
   useEffect(() => {
     if (isOpen && sayThis) {
-      // Trigger voice alert
       const textToSpeak = `Alert! Scam detected! Hang up now! Say to the caller: ${sayThis}`;
       speak(textToSpeak, language);
     }
@@ -32,12 +31,12 @@ export function ScamAlertOverlay({
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="scam-alert-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-red-950/90 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-red-950/90 backdrop-blur-md fade-up"
     >
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-4 border-red-600 overflow-hidden text-center flex flex-col max-h-[90vh]">
+      <div className="animate-alert-entry w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-4 border-red-600 overflow-hidden text-center flex flex-col max-h-[90vh]">
         {/* Urgent Red Banner */}
         <div className="bg-red-600 text-white px-6 py-5 flex items-center justify-center gap-3 animate-emergency">
-          <AlertOctagon className="w-10 h-10 animate-bounce shrink-0" />
+          <AlertOctagon className="w-10 h-10 shrink-0" />
           <h2
             id="scam-alert-title"
             className="text-3xl sm:text-4xl font-black tracking-wider uppercase"
@@ -60,18 +59,18 @@ export function ScamAlertOverlay({
           {/* Say This Section */}
           {sayThis && (
             <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-5 text-left space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-extrabold text-red-900 uppercase tracking-wider">
                   🗣️ What to say immediately:
                 </span>
                 <button
                   type="button"
                   onClick={() => speak(sayThis, language)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-red-700 hover:text-red-900 bg-white border border-red-300 px-3 py-1 rounded-lg"
+                  className="min-h-[48px] flex items-center gap-1.5 text-sm font-bold text-red-700 hover:text-red-900 bg-white border border-red-300 px-3.5 py-2 rounded-xl"
                   aria-label="Replay instruction aloud"
                 >
                   <Volume2 className="w-4 h-4" />
-                  Replay Voice
+                  <span>Replay Voice</span>
                 </button>
               </div>
               <p className="text-xl sm:text-2xl font-bold text-red-950 italic">

@@ -56,8 +56,8 @@ export function ScanResultPage() {
           setCurrentLang(preferredLang);
           // Pre-populate report identifier if available
           const firstId = res.scan.identifiers?.phones?.[0] ||
-                          res.scan.identifiers?.upi_ids?.[0] ||
-                          res.scan.identifiers?.urls?.[0] || '';
+            res.scan.identifiers?.upi_ids?.[0] ||
+            res.scan.identifiers?.urls?.[0] || '';
           setReportValue(firstId);
         }
       } catch (err) {
@@ -123,7 +123,7 @@ export function ScanResultPage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto py-16 px-4">
-        <div className="bg-white rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading security scan report..." />
         </div>
       </div>
@@ -160,7 +160,7 @@ export function ScanResultPage() {
       <div className="flex items-center justify-between">
         <Link
           to="/dashboard"
-          className="min-h-[44px] px-3 py-1.5 text-slate-700 hover:text-navy-900 font-bold flex items-center gap-2 text-base transition-colors"
+          className="min-h-[48px] px-3 py-2 text-slate-700 hover:text-navy-900 font-bold flex items-center gap-2 text-base transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Back to Dashboard</span>
@@ -168,14 +168,14 @@ export function ScanResultPage() {
 
         <Link
           to="/scan"
-          className="min-h-[44px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-navy-900 font-bold rounded-xl text-sm transition-colors"
+          className="min-h-[48px] px-4 py-2 bg-white/90 backdrop-blur-sm border border-slate-200 hover:bg-white text-navy-900 font-bold rounded-xl text-sm flex items-center transition-colors shadow-sm"
         >
           + Scan Another
         </Link>
       </div>
 
       {/* Main Result Card */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-10 space-y-8">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-10 space-y-8">
         {/* Header with Risk Meter & Verdict */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-200">
           <div className="flex-1 text-center md:text-left space-y-3">
@@ -251,11 +251,10 @@ export function ScanResultPage() {
                 type="button"
                 onClick={() => handleLanguageSwitch(l.code)}
                 disabled={explaining}
-                className={`min-h-[44px] px-4 py-1.5 rounded-xl font-bold text-sm transition-all ${
-                  currentLang === l.code
-                    ? 'bg-navy-900 text-white shadow'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
-                }`}
+                className={`min-h-[48px] px-4 py-2 rounded-xl font-bold text-sm transition-all ${currentLang === l.code
+                  ? 'bg-navy-900 text-white shadow'
+                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
+                  }`}
               >
                 {l.label}
               </button>

@@ -109,7 +109,7 @@ export function FamilyPage() {
       <ErrorBox error={error} />
 
       {/* Invite a Guardian Form */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-navy-50 text-navy-900 flex items-center justify-center">
             <UserPlus className="w-6 h-6" />
@@ -154,7 +154,7 @@ export function FamilyPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading your family circle..." />
         </div>
       ) : (
@@ -201,7 +201,7 @@ export function FamilyPage() {
           )}
 
           {/* Section: People I Protect */}
-          <div className="bg-white rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-6 h-6 text-emerald-600" />
@@ -255,7 +255,7 @@ export function FamilyPage() {
           </div>
 
           {/* Section: My Guardians */}
-          <div className="bg-white rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Users className="w-6 h-6 text-navy-900" />

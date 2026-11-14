@@ -174,7 +174,7 @@ export function LiveCallGuardPage() {
     performAnalysis(manualTypedText);
   };
 
-  // Highlight trigger phrases in transcript
+  // Highlight trigger phrases in transcript & fade in words as they appear
   const renderHighlightedTranscript = () => {
     const fullText = (transcript + (interimText ? ' ' + interimText : '')).trim();
     if (!fullText) {
@@ -185,16 +185,21 @@ export function LiveCallGuardPage() {
       );
     }
 
-    if (!analysis.triggers || analysis.triggers.length === 0) {
-      return <span>{fullText}</span>;
-    }
-
-    // Build regex to highlight phrases
-    const phrases = analysis.triggers
+    const phrases = (analysis.triggers || [])
       .map(t => t.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .filter(Boolean);
 
-    if (phrases.length === 0) return <span>{fullText}</span>;
+    if (phrases.length === 0) {
+      return fullText.split(/(\s+)/).map((token, idx) =>
+        /^\s+$/.test(token) ? (
+          <span key={idx}>{token}</span>
+        ) : (
+          <span key={idx} className="word-fade">
+            {token}
+          </span>
+        )
+      );
+    }
 
     const regex = new RegExp(`(${phrases.join('|')})`, 'gi');
     const parts = fullText.split(regex);
@@ -205,13 +210,21 @@ export function LiveCallGuardPage() {
         return (
           <mark
             key={i}
-            className="bg-red-200 text-red-950 font-black px-1.5 py-0.5 rounded border border-red-400 animate-pulse"
+            className="word-fade bg-red-200 text-red-950 font-black px-1.5 py-0.5 rounded border border-red-400"
           >
             {part}
           </mark>
         );
       }
-      return <span key={i}>{part}</span>;
+      return part.split(/(\s+)/).map((token, j) =>
+        /^\s+$/.test(token) ? (
+          <span key={`${i}-${j}`}>{token}</span>
+        ) : (
+          <span key={`${i}-${j}`} className="word-fade">
+            {token}
+          </span>
+        )
+      );
     });
   };
 
@@ -244,7 +257,7 @@ export function LiveCallGuardPage() {
           <button
             type="button"
             onClick={isDemoRunning ? handleStopDemo : handleStartDemo}
-            className="min-h-[44px] px-4 py-2 bg-white hover:bg-slate-100 text-red-700 font-black rounded-xl text-sm shadow flex items-center gap-2 transition-all focus:ring-2 focus:ring-white"
+            className="min-h-[48px] px-4 py-2 bg-white hover:bg-slate-100 text-red-700 font-black rounded-xl text-sm shadow flex items-center gap-2 transition-all focus:ring-2 focus:ring-white"
           >
             <Sparkles className="w-4 h-4 text-amber-500" />
             <span>{isDemoRunning ? '⏹ Stop Demo' : '▶ Demo Mode (Simulate Call)'}</span>
@@ -272,7 +285,7 @@ export function LiveCallGuardPage() {
       <ErrorBox error={error} />
 
       {/* Language Picker */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <span className="text-sm font-bold text-slate-700">
           Listening Language:
         </span>
@@ -286,7 +299,7 @@ export function LiveCallGuardPage() {
               key={lang.code}
               type="button"
               onClick={() => setSelectedLang(lang.code)}
-              className={`min-h-[44px] px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${
+              className={`min-h-[48px] px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                 selectedLang === lang.code
                   ? 'bg-navy-900 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -299,7 +312,7 @@ export function LiveCallGuardPage() {
       </div>
 
       {/* Live Risk Meter & Live Verdict Card */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-8 space-y-6">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-8 space-y-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex-1 space-y-3 text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-2">
@@ -380,16 +393,16 @@ export function LiveCallGuardPage() {
       </div>
 
       {/* Live Transcript Display Box */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-xl font-black text-navy-950">
               Live Call Transcript
             </h3>
             {isAnalyzing && (
-              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                Analyzing words...
+              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-amber-200">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Analyzing words...</span>
               </span>
             )}
           </div>
