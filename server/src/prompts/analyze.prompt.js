@@ -49,14 +49,19 @@ IMAGES: If an image is attached and it is not a screenshot/photo of a message, c
 Allowed scam_type values: ${SCAM_TYPES.join(', ')}.`;
 }
 
-export function buildAnalyzeUserPrompt({ text, hasImage, nonce }) {
+export function buildAnalyzeUserPrompt({ text, hasImage, nonce, source = 'message' }) {
   const parts = [];
   if (hasImage) {
     parts.push('An image (screenshot) of the suspicious message is attached. Analyse the message shown in it.');
   }
+  let intro = hasImage ? 'The user also pasted this text' : 'Analyse this suspicious message';
+  if (source === 'call') {
+    intro =
+      'Analyse this phone/video call. It is a speech-to-text transcript, so words may be misspelt and speakers are not labelled. Judge what the CALLER wants. Quote red-flag evidence exactly as transcribed';
+  }
   if (text) {
     parts.push(
-      `${hasImage ? 'The user also pasted this text' : 'Analyse this suspicious message'}:`,
+      `${intro}:`,
       `<<<UNTRUSTED_MESSAGE_${nonce}>>>`,
       text,
       `<<<END_UNTRUSTED_MESSAGE_${nonce}>>>`,

@@ -17,7 +17,9 @@ export async function list(req, res) {
           id: row.scan.id,
           summary: row.scan.summary,
           risk_score: row.scan.risk_score,
+          risk_level: row.scan.risk_level,
           scam_type: row.scan.scam_type,
+          input_type: row.scan.input_type,
         }
       : null,
   }));

@@ -1,16 +1,8 @@
-import { notifyGuardiansOfScan } from '../services/alert.service.js';
-import { deleteScan, getScan, insertScan, listScans } from '../services/db.service.js';
-import { analyzeMessage, explainScan } from '../services/gemini.service.js';
+import { deleteScan, getScan, listScans } from '../services/db.service.js';
+import { explainScan } from '../services/gemini.service.js';
+import { analyseAndSaveScan, maskFlags, maskList } from '../services/scan.service.js';
 import { AppError } from '../utils/AppError.js';
-import { maskSensitiveNumbers, sanitizeForStorage } from '../utils/maskSensitive.js';
-
-const maskList = (items) => items.map((item) => maskSensitiveNumbers(item));
-const maskFlags = (flags) =>
-  flags.map((flag) => ({
-    flag: maskSensitiveNumbers(flag.flag),
-    evidence: maskSensitiveNumbers(flag.evidence),
-    explanation: maskSensitiveNumbers(flag.explanation),
-  }));
+import { maskSensitiveNumbers } from '../utils/maskSensitive.js';
 
 export async function createScan(req, res) {
   const { text } = req.valid.body;
@@ -21,27 +13,13 @@ export async function createScan(req, res) {
     throw AppError.badRequest('Upload a screenshot or paste the message text', 'NO_INPUT');
   }
 
-  const analysis = await analyzeMessage({ text, image, language });
-
-  // Prefer what the user typed; otherwise keep the text read from the screenshot.
-  const messageText = sanitizeForStorage(text ?? analysis.extracted_text);
-
-  const scan = await insertScan({
-    user_id: req.user.id,
-    input_type: image ? 'image' : 'text',
-    message_text: messageText,
-    risk_level: analysis.risk_level,
-    risk_score: analysis.risk_score,
-    scam_type: analysis.scam_type,
-    red_flags: maskFlags(analysis.red_flags),
-    summary: maskSensitiveNumbers(analysis.summary),
-    explanation: maskSensitiveNumbers(analysis.explanation),
-    actions: maskList(analysis.actions),
-    safe_reasons: maskList(analysis.safe_reasons),
+  const scan = await analyseAndSaveScan({
+    userId: req.user.id,
+    text,
+    image,
     language,
+    inputType: image ? 'image' : 'text',
   });
-
-  await notifyGuardiansOfScan(req.user.id, scan);
 
   res.status(201).json({ scan });
 }

@@ -10,8 +10,8 @@ export const supabase = createClient(config.supabase.url, config.supabase.servic
 
 const USER_PUBLIC = 'id, name, email, preferred_language';
 const SCAN_PUBLIC =
-  'id, input_type, message_text, risk_level, risk_score, scam_type, red_flags, summary, explanation, actions, safe_reasons, language, created_at';
-const SCAN_LIST = 'id, summary, risk_level, risk_score, scam_type, created_at';
+  'id, input_type, message_text, risk_level, risk_score, scam_type, red_flags, summary, explanation, actions, safe_reasons, identifiers, community_matches, language, created_at';
+const SCAN_LIST = 'id, input_type, summary, risk_level, risk_score, scam_type, created_at';
 
 function dbError(error, context) {
   if (error.code === '23505') return AppError.conflict('This record already exists', 'ALREADY_EXISTS');
@@ -200,7 +200,7 @@ export async function listAlerts(guardianId, { limit }) {
     await supabase
       .from('alerts')
       .select(
-        'id, is_read, created_at, person:users!alerts_user_id_fkey(name), scan:scans!alerts_scan_id_fkey(id, summary, risk_score, scam_type)',
+        'id, is_read, created_at, person:users!alerts_user_id_fkey(name), scan:scans!alerts_scan_id_fkey(id, summary, risk_score, risk_level, scam_type, input_type)',
       )
       .eq('guardian_id', guardianId)
       .order('created_at', { ascending: false })
@@ -246,4 +246,30 @@ export async function getTrends() {
       count: Number(row.count),
     })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Community scam reports
+// ---------------------------------------------------------------------------
+
+/**
+ * Aggregated report stats for normalised identifiers.
+ * @param {{type: string, key: string}[]} identifiers
+ */
+export async function getReportStats(identifiers) {
+  if (identifiers.length === 0) return [];
+  const keys = identifiers.map(({ type, key }) => `${type}:${key}`);
+  return unwrap(await supabase.rpc('scam_report_stats', { p_keys: keys }), 'getReportStats');
+}
+
+export async function insertScamReport({ reporterId, type, key, scamType }) {
+  const { data, error } = await supabase
+    .from('scam_reports')
+    .insert({ reporter_id: reporterId, identifier_type: type, identifier_value: key, scam_type: scamType })
+    .select('id, identifier_type, identifier_value, scam_type, created_at')
+    .single();
+  if (error?.code === '23505') {
+    throw AppError.conflict('You have already reported this number, UPI ID or link', 'ALREADY_REPORTED');
+  }
+  return unwrap({ data, error }, 'insertScamReport');
 }

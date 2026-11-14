@@ -55,6 +55,31 @@ export const analyzeResponseSchema = {
   ],
 };
 
+export const liveCallResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    risk_level: { type: Type.STRING, format: 'enum', enum: RISK_LEVELS },
+    risk_score: { type: Type.INTEGER, minimum: 0, maximum: 100 },
+    scam_type: { type: Type.STRING, format: 'enum', enum: SCAM_TYPES },
+    triggers: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          phrase: { type: Type.STRING, description: 'Exact short quote from the transcript' },
+          why: { type: Type.STRING, description: 'One simple sentence in the chosen language' },
+        },
+        required: ['phrase', 'why'],
+        propertyOrdering: ['phrase', 'why'],
+      },
+    },
+    advice: { type: Type.STRING },
+    say_this: { type: Type.STRING },
+  },
+  required: ['risk_level', 'risk_score', 'scam_type', 'triggers', 'advice', 'say_this'],
+  propertyOrdering: ['risk_level', 'risk_score', 'scam_type', 'triggers', 'advice', 'say_this'],
+};
+
 export const explainResponseSchema = {
   type: Type.OBJECT,
   properties: {
