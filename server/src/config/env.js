@@ -15,6 +15,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   GEMINI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   GEMINI_MODEL: z.preprocess(emptyToUndefined, z.string().default('gemini-2.5-flash')),
+  GEMINI_FALLBACK_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
   SUPABASE_URL: z.url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20, 'SUPABASE_SERVICE_ROLE_KEY is required'),
 });
@@ -41,7 +42,8 @@ export const config = {
   gemini: {
     apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_MODEL,
-    timeoutMs: 30_000,
+    fallbackModel: env.GEMINI_FALLBACK_MODEL,
+    timeoutMs: 25_000,
   },
   supabase: {
     url: env.SUPABASE_URL,

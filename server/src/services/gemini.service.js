@@ -64,31 +64,40 @@ function mapGeminiError(err) {
   );
 }
 
+// Overload (5xx), rate limits (429), timeouts and network errors are worth one
+// more attempt; bad requests and auth errors are not.
 const isRetryable = (err) =>
-  !(err instanceof AppError) && (!(err instanceof ApiError) || err.status >= 500);
+  !(err instanceof AppError)
+  && (!(err instanceof ApiError) || err.status >= 500 || err.status === 429);
 
 async function generateJson({ systemInstruction, parts, responseSchema }) {
   const ai = getClient();
-  const request = {
-    model: config.gemini.model,
-    contents: [{ role: 'user', parts }],
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema,
-      temperature: 0.2,
-      safetySettings: SAFETY_SETTINGS,
-      httpOptions: { timeout: config.gemini.timeoutMs },
-    },
+  // Second attempt goes to the fallback model when one is configured, so a
+  // single overloaded model does not take scanning down.
+  const models = [config.gemini.model, config.gemini.fallbackModel ?? config.gemini.model];
+  const generationConfig = {
+    systemInstruction,
+    responseMimeType: 'application/json',
+    responseSchema,
+    temperature: 0.2,
+    safetySettings: SAFETY_SETTINGS,
+    httpOptions: { timeout: config.gemini.timeoutMs },
   };
 
   let response;
-  for (let attempt = 1; ; attempt += 1) {
+  for (const [index, model] of models.entries()) {
     try {
-      response = await ai.models.generateContent(request);
+      response = await ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts }],
+        config: generationConfig,
+      });
       break;
     } catch (err) {
-      if (attempt >= 2 || !isRetryable(err)) throw mapGeminiError(err);
+      const isLast = index === models.length - 1;
+      if (isLast || !isRetryable(err)) throw mapGeminiError(err);
+      const status = err instanceof ApiError ? err.status : 'network/timeout';
+      console.warn(`[gemini] ${model} failed (${status}), retrying with ${models[index + 1]}`);
     }
   }
 
