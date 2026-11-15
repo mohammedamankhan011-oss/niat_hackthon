@@ -441,6 +441,62 @@ curl -X PATCH http://localhost:5000/api/alerts/ccccccc1-0000-4000-8000-000000000
 
 ## Live Call Guard
 
+### `POST /api/calls/transcribe`  (protected)
+
+Transcribes an audio chunk or voice stream segment in real time using Gemini audio intelligence. Supports English (`en`), Hindi (`hi`), and Kannada (`kn`). Audio is held in memory only and never persisted to disk.
+
+Form fields (`multipart/form-data`):
+- `audio` (required, audio file / chunk up to 15 MB, e.g. `audio/webm`, `audio/wav`, `audio/mp4`, `audio/ogg`, `audio/mpeg`)
+- `language` (optional, defaults to `en` or user's `preferred_language`)
+
+```bash
+curl -X POST http://localhost:5000/api/calls/transcribe \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "audio=@chunk.webm" \
+  -F "language=hi"
+```
+
+`200`
+```json
+{
+  "transcript": "मैं मुंबई पुलिस क्राइम ब्रांच से इंस्पेक्टर बोल रहा हूँ।",
+  "has_speech": true,
+  "detected_language": "hi"
+}
+```
+
+### `POST /api/calls/analyze-audio`  (protected)
+
+Transcribes an entire permitted call recording or audio file and runs live scam detection or creates a full scan.
+
+Form fields (`multipart/form-data`):
+- `audio` (required, audio recording file up to 15 MB)
+- `language` (optional, defaults to `en`)
+- `save` (optional, `"true"` to save as a completed scan)
+
+```bash
+curl -X POST http://localhost:5000/api/calls/analyze-audio?save=true \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "audio=@call_recording.mp3" \
+  -F "language=en"
+```
+
+`200` / `201`
+```json
+{
+  "transcript": "DCP Rajesh Kumar here. Consignment containing MDMA intercepted under your Aadhaar. Connect on Skype.",
+  "has_speech": true,
+  "analysis": {
+    "risk_level": "scam",
+    "risk_score": 98,
+    "scam_type": "digital_arrest",
+    "triggers": [{ "phrase": "digital arrest", "why": "Digital arrest does not exist in Indian law." }],
+    "advice": "Hang up the call immediately. Report this call to 1930.",
+    "say_this": "I am disconnecting and visiting the police station myself."
+  }
+}
+```
+
 ### `POST /api/calls/analyze`  (protected)
 
 Real-time verdict on the transcript of a call **so far**. The client sends the latest transcript (last ~4,000 characters) every few seconds while the call is on speaker. **Nothing is stored and no alerts are sent.**

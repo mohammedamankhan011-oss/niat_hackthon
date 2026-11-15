@@ -748,33 +748,45 @@ export function analyzeLiveCallHeuristic(transcript = '', language = 'en') {
 
   if (
     lower.includes('digital arrest') ||
+    lower.includes('डिजिटल अरेस्ट') ||
+    lower.includes('ಡಿಜಿಟಲ್ ಬಂಧನ') ||
+    lower.includes('ಡಿಜಿಟಲ್ ಅರೆಸ್ಟ್') ||
     lower.includes('parcel') ||
+    lower.includes('पार्सल') ||
+    lower.includes('ಪಾರ್ಸೆಲ್') ||
     lower.includes('narcotics') ||
     lower.includes('customs') ||
+    lower.includes('कस्टम्स') ||
     lower.includes('skype') ||
+    lower.includes('स्काइप') ||
     lower.includes('pmla') ||
     lower.includes('supreme court') ||
     lower.includes('rbi safe') ||
     lower.includes('inspector') ||
-    lower.includes('cyber crime')
+    lower.includes('इंस्पेक्टर') ||
+    lower.includes('cbi') ||
+    lower.includes('सीबीआई') ||
+    lower.includes('ಸಿಬಿಐ') ||
+    lower.includes('cyber crime') ||
+    lower.includes('साइबर क्राइम')
   ) {
     riskScore = 98;
     riskLevel = 'scam';
     scamType = 'digital_arrest';
 
-    if (lower.includes('digital arrest')) {
+    if (lower.includes('digital arrest') || lower.includes('डिजिटल अरेस्ट') || lower.includes('ಡಿಜಿಟಲ್ ಬಂಧನ')) {
       triggers.push({
-        phrase: 'digital arrest',
+        phrase: lower.includes('डिजिटल अरेस्ट') ? 'डिजिटल अरेस्ट' : lower.includes('ಡಿಜಿಟಲ್ ಬಂಧನ') ? 'ಡಿಜಿಟಲ್ ಬಂಧನ' : 'digital arrest',
         why: 'Indian law has no provision for Digital Arrest. It is 100% fake.'
       });
     }
-    if (lower.includes('parcel') || lower.includes('narcotics') || lower.includes('mdma')) {
+    if (lower.includes('parcel') || lower.includes('पार्सल') || lower.includes('ಪಾರ್ಸೆಲ್') || lower.includes('narcotics') || lower.includes('mdma') || lower.includes('ड्रग्स')) {
       triggers.push({
-        phrase: 'parcel / narcotics',
+        phrase: lower.includes('पार्सल') ? 'पार्सल / ड्रग्स' : lower.includes('ಪಾರ್ಸೆಲ್') ? 'ಪಾರ್ಸೆಲ್' : 'parcel / narcotics',
         why: 'Scammers claim intercepted drug packages under your Aadhaar to induce terror.'
       });
     }
-    if (lower.includes('skype')) {
+    if (lower.includes('skype') || lower.includes('स्काइप')) {
       triggers.push({
         phrase: 'connect on Skype',
         why: 'Police officers do not conduct video interrogations on consumer apps.'
@@ -965,6 +977,58 @@ export const mockBackend = {
   },
 
   // Calls
+  transcribeAudio: async ({ audioBlob, language = 'en' }) => {
+    // Fictional sample transcription based on requested language
+    let sampleText = "Inspector Rajesh here from Mumbai Crime Branch regarding your Aadhaar linked parcel.";
+    if (language === 'hi') {
+      sampleText = "मैं मुंबई पुलिस क्राइम ब्रांच से इंस्पेक्टर राजेश बोल रहा हूँ। आपके आधार से जुड़ा पार्सल मिला है।";
+    } else if (language === 'kn') {
+      sampleText = "ನಾನು ಮುಂಬೈ ಕ್ರೈಮ್ ಬ್ರಾಂಚ್ ಇನ್‌ಸ್ಪೆಕ್ಟರ್ ರಾಜೇಶ್ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. ನಿಮ್ಮ ಆಧಾರ್‌ಗೆ ಲಿಂಕ್ ಆದ ಪಾರ್ಸೆಲ್ ಸಿಕ್ಕಿದೆ.";
+    }
+
+    // Check if audioBlob has size
+    const size = audioBlob?.size ?? audioBlob?.byteLength;
+    const hasData = typeof size === 'number' ? size > 0 : Boolean(audioBlob && Object.keys(audioBlob).length > 0);
+
+    return {
+      transcript: hasData ? sampleText : '',
+      has_speech: Boolean(hasData),
+      detected_language: language
+    };
+  },
+
+  analyzeAudio: async ({ audioFile, language = 'en', save = false }) => {
+    let transcript = "DCP Rajesh Kumar speaking from Mumbai Police Crime Branch. A consignment containing 140 grams MDMA was intercepted at Mumbai airport under your Aadhaar. You are placed under digital arrest. Do not disconnect the phone.";
+    if (language === 'hi') {
+      transcript = "डीसीपी राजेश कुमार बोल रहा हूँ मुंबई पुलिस क्राइम ब्रांच से। आपके आधार कार्ड पर 140 ग्राम एमडीएमए पार्सल पकड़ा गया है। आप डिजिटल अरेस्ट में हैं।";
+    } else if (language === 'kn') {
+      transcript = "ಮುಂಬೈ ಪೊಲೀಸ್ ಕ್ರೈಮ್ ಬ್ರಾಂಚ್‌ನಿಂದ ಡಿಸಿಪಿ ರಾಜೇಶ್ ಕುಮಾರ್. ನಿಮ್ಮ ಆಧಾರ್‌ನಲ್ಲಿ 140 ಗ್ರಾಂ ಎಂಡಿಎಂಎ ಪಾರ್ಸೆಲ್ ವಶಪಡಿಸಿಕೊಳ್ಳಲಾಗಿದೆ. ನೀವು ಡಿಜಿಟಲ್ ಬಂಧನದಲ್ಲಿದ್ದೀರಿ.";
+    }
+
+    const analysis = analyzeContentHeuristic(transcript, language);
+
+    let scan = null;
+    if (save) {
+      const scans = loadStorage(STORAGE_KEYS.SCANS, SEED_SCANS);
+      scan = {
+        id: 'scan_audio_' + Date.now(),
+        input_type: 'call',
+        message_text: transcript,
+        ...analysis,
+        created_at: new Date().toISOString()
+      };
+      scans.unshift(scan);
+      saveStorage(STORAGE_KEYS.SCANS, scans);
+    }
+
+    return {
+      transcript,
+      has_speech: true,
+      analysis,
+      scan
+    };
+  },
+
   analyzeCall: async ({ transcript, language = 'en' }) => {
     const analysis = analyzeLiveCallHeuristic(transcript, language);
     return { analysis };

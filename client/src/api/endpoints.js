@@ -100,6 +100,41 @@ export const api = {
 
   // Calls endpoints (Live Call Guard)
   calls: {
+    transcribeAudio: async ({ audioBlob, language = 'en' }) => {
+      if (isMockMode) {
+        await delay(200);
+        return mockBackend.transcribeAudio({ audioBlob, language });
+      }
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'chunk.webm');
+      if (language) formData.append('language', language);
+
+      const res = await apiClient.post('/api/calls/transcribe', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return res.data;
+    },
+
+    analyzeAudio: async ({ audioFile, language = 'en', save = false }) => {
+      if (isMockMode) {
+        await delay(350);
+        return mockBackend.analyzeAudio({ audioFile, language, save });
+      }
+      const formData = new FormData();
+      formData.append('audio', audioFile, audioFile.name || 'recording.mp3');
+      if (language) formData.append('language', language);
+      if (save) formData.append('save', 'true');
+
+      const res = await apiClient.post('/api/calls/analyze-audio', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return res.data;
+    },
+
     analyze: async ({ transcript, language = 'en' }) => {
       if (isMockMode) {
         await delay(150);

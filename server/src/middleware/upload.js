@@ -57,3 +57,60 @@ export function uploadScanImage(req, res, next) {
     next();
   });
 }
+
+// Allowed audio types for live stream chunks and call recordings
+const ALLOWED_AUDIO_MIMES = [
+  'audio/webm',
+  'audio/wav',
+  'audio/wave',
+  'audio/x-wav',
+  'audio/ogg',
+  'application/ogg',
+  'audio/mp4',
+  'audio/m4a',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/3gpp',
+  'audio/amr',
+];
+
+const multerAudioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1, fields: 10 }, // 15MB limit
+  fileFilter(_req, file, cb) {
+    const mime = file.mimetype.toLowerCase().split(';')[0].trim();
+    if (!ALLOWED_AUDIO_MIMES.includes(mime)) {
+      cb(AppError.badRequest('Only audio files (WebM, WAV, OGG, MP4/M4A, MP3) are allowed', 'INVALID_FILE_TYPE'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+export function uploadCallAudio(req, res, next) {
+  multerAudioUpload.single('audio')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        next(new AppError(413, 'Audio file is too large. The maximum size is 15 MB.', 'FILE_TOO_LARGE'));
+        return;
+      }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        next(AppError.badRequest('Upload a single audio file in the "audio" field', 'INVALID_UPLOAD'));
+        return;
+      }
+      next(AppError.badRequest(err.message, 'INVALID_UPLOAD'));
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    if (!req.file) {
+      next(AppError.badRequest('No audio data provided in the "audio" field', 'MISSING_AUDIO'));
+      return;
+    }
+    next();
+  });
+}

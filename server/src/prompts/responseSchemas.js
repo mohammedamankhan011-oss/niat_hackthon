@@ -80,6 +80,17 @@ export const liveCallResponseSchema = {
   propertyOrdering: ['risk_level', 'risk_score', 'scam_type', 'triggers', 'advice', 'say_this'],
 };
 
+export const transcribeResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    transcript: { type: Type.STRING, description: 'Verbatim transcription in the spoken language or script' },
+    has_speech: { type: Type.BOOLEAN, description: 'True if recognizable speech is detected, false if silence, static or background noise' },
+    detected_language: { type: Type.STRING, description: 'Detected language code (en, hi, kn, or other)' },
+  },
+  required: ['transcript', 'has_speech'],
+  propertyOrdering: ['transcript', 'has_speech', 'detected_language'],
+};
+
 export const explainResponseSchema = {
   type: Type.OBJECT,
   properties: {

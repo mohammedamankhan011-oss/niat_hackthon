@@ -4,12 +4,18 @@ import { z } from 'zod';
 import { config } from '../config/env.js';
 import { RISK_BANDS, RISK_LEVELS, SCAM_TYPES } from '../config/constants.js';
 import { buildAnalyzeSystemPrompt, buildAnalyzeUserPrompt } from '../prompts/analyze.prompt.js';
-import { buildLiveCallSystemPrompt, buildLiveCallUserPrompt } from '../prompts/call.prompt.js';
+import {
+  buildLiveCallSystemPrompt,
+  buildLiveCallUserPrompt,
+  buildTranscribeSystemPrompt,
+  buildTranscribeUserPrompt,
+} from '../prompts/call.prompt.js';
 import { buildExplainSystemPrompt, buildExplainUserPrompt } from '../prompts/explain.prompt.js';
 import {
   analyzeResponseSchema,
   explainResponseSchema,
   liveCallResponseSchema,
+  transcribeResponseSchema,
 } from '../prompts/responseSchemas.js';
 import { AppError } from '../utils/AppError.js';
 import { localized } from '../utils/localizedText.js';
@@ -433,4 +439,72 @@ export async function analyzeLiveCall({ transcript, language }) {
       clip(data.say_this, 300)
       || localized(language, riskLevel === 'safe' ? 'liveSafeSayThis' : 'liveScamSayThis'),
   };
+}
+
+const aiTranscribe = z.object({
+  transcript: looseString,
+  has_speech: z.boolean().catch(false),
+  detected_language: looseString,
+});
+
+/**
+ * Transcribes an incoming audio chunk or recording using Gemini.
+ * Audio is kept strictly in-memory and never written to disk.
+ */
+export async function transcribeAudio({ audio, language = 'en' }) {
+  if (!audio || !audio.buffer || audio.buffer.length === 0) {
+    return { transcript: '', has_speech: false, detected_language: language };
+  }
+
+  const nonce = newNonce();
+  const rawMime = (audio.mimetype || 'audio/webm').toLowerCase().split(';')[0].trim();
+  const supportedMimes = ['audio/webm', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/mp3', 'audio/m4a', 'audio/aac'];
+  const mimeType = supportedMimes.includes(rawMime) ? rawMime : 'audio/webm';
+
+  const parts = [
+    { inlineData: { mimeType, data: audio.buffer.toString('base64') } },
+    { text: buildTranscribeUserPrompt({ nonce }) },
+  ];
+
+  try {
+    const raw = await generateJson({
+      systemInstruction: buildTranscribeSystemPrompt(language, nonce),
+      parts,
+      responseSchema: transcribeResponseSchema,
+    });
+
+    const parsed = aiTranscribe.parse(raw ?? {});
+    return {
+      transcript: clip(parsed.transcript, 4000),
+      has_speech: parsed.has_speech || parsed.transcript.trim().length > 0,
+      detected_language: parsed.detected_language || language,
+    };
+  } catch (err) {
+    console.warn('[gemini] audio transcription failed:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Transcribes an audio recording and runs live call scam analysis on it.
+ */
+export async function analyzeAudioWithGemini({ audio, language = 'en' }) {
+  const { transcript, has_speech } = await transcribeAudio({ audio, language });
+  if (!has_speech || !transcript) {
+    return {
+      transcript: '',
+      has_speech: false,
+      analysis: {
+        risk_level: 'safe',
+        risk_score: 0,
+        scam_type: 'none',
+        triggers: [],
+        advice: localized(language, 'liveSafeAdvice'),
+        say_this: localized(language, 'liveSafeSayThis'),
+      },
+    };
+  }
+
+  const analysis = await analyzeLiveCall({ transcript, language });
+  return { transcript, has_speech: true, analysis };
 }
