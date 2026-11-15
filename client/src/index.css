@@ -7,8 +7,18 @@
     font-size: 18px; /* High legibility base font for parents, seniors, students */
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: #0F172A;
-    background-color: #F8FAFC;
+    background-color: transparent;
     scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body, #root, main {
+    background-color: transparent;
+  }
+
+  body {
+    overflow-x: hidden;
+    min-width: 320px;
   }
 
   /* Support for Devanagari and Kannada fonts when viewing localized text */
@@ -19,9 +29,19 @@
     font-family: 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
-  /* Large touch targets */
+  /* Large touch targets & subtle press scale */
   button, input, select, textarea, a {
     touch-action: manipulation;
+  }
+
+  button,
+  a[class*="rounded-"] {
+    transition: transform 160ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out, color 200ms ease-out;
+  }
+
+  button:active:not(:disabled),
+  a[class*="rounded-"]:active {
+    transform: scale(0.98);
   }
 
   /* Focus ring for accessibility */
@@ -29,18 +49,244 @@
     outline: 3px solid #0F1E36;
     outline-offset: 2px;
   }
+
+  /* Ensure no text is smaller than 14px on mobile (< 768px) */
+  @media (max-width: 767px) {
+    .text-xs {
+      font-size: 14px !important;
+      line-height: 1.45 !important;
+    }
+  }
 }
 
-/* Custom animation for live call radar & emergency alert pulse */
-@keyframes emergency-pulse {
+/* Global Truchet Flow Background */
+.bg-truchet-flow-root {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: #f8fafc;
+}
+.bg-truchet-flow-root canvas {
+  display: block;
+}
+
+/* Quick 200ms route page fade */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-fade {
+  animation: pageFadeIn 200ms ease-out both;
+}
+
+/* Section & Card Fade-Up (12px) with 60ms stagger support */
+@keyframes fadeUp12 {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fadeUp12 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 300ms; }
+
+/* Verdict Badge Pop-in (0.95 -> 1) */
+@keyframes verdictPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.verdict-pop {
+  animation: verdictPopIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Live Call Transcript Word Fade-in */
+@keyframes wordFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.word-fade {
+  display: inline-block;
+  animation: wordFadeIn 240ms ease-out both;
+}
+
+/* Laptop-only subtle card hover lift */
+@media (hover: hover) and (min-width: 1024px) {
+  .card-lift {
+    transition: transform 240ms ease-out, box-shadow 240ms ease-out, border-color 240ms ease-out;
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px -8px rgba(15, 30, 54, 0.12), 0 4px 10px -4px rgba(15, 30, 54, 0.06);
+  }
+}
+
+/* Skeleton Shimmer Loader */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+
+/* HANG UP NOW overlay: slide up + one subtle shake on entry + slow red glow pulse */
+@keyframes alertSlideAndShake {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+  68% {
+    transform: translateY(0) translateX(-5px);
+  }
+  80% {
+    transform: translateY(0) translateX(5px);
+  }
+  90% {
+    transform: translateY(0) translateX(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+@keyframes slowRedGlow {
   0%, 100% {
-    background-color: rgba(220, 38, 38, 0.98);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35), 0 20px 45px -10px rgba(153, 27, 27, 0.45);
   }
   50% {
-    background-color: rgba(185, 28, 28, 1);
+    box-shadow: 0 0 0 12px rgba(220, 38, 38, 0), 0 24px 55px -6px rgba(220, 38, 38, 0.65);
   }
+}
+
+.animate-alert-entry {
+  animation: alertSlideAndShake 520ms cubic-bezier(0.22, 1, 0.36, 1) both,
+             slowRedGlow 2.8s ease-in-out 520ms infinite;
 }
 
 .animate-emergency {
-  animation: emergency-pulse 1.2s infinite ease-in-out;
+  background-color: #dc2626;
+}
+
+/* Home Hero Phone Mockup (~6s loop) */
+@keyframes phoneScanLine {
+  0%, 22% {
+    top: 0%;
+    opacity: 0;
+  }
+  25% {
+    top: 4%;
+    opacity: 1;
+  }
+  46% {
+    top: 94%;
+    opacity: 1;
+  }
+  50%, 100% {
+    top: 98%;
+    opacity: 0;
+  }
+}
+
+@keyframes phoneVerdictCycle {
+  0%, 42% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  50%, 88% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  96%, 100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.phone-scan-beam {
+  animation: phoneScanLine 6s ease-in-out infinite;
+}
+
+.phone-verdict-reveal {
+  animation: phoneVerdictCycle 6s ease-out infinite;
+}
+
+.phone-chip-1 {
+  animation: phoneVerdictCycle 6s ease-out 100ms infinite;
+}
+
+.phone-chip-2 {
+  animation: phoneVerdictCycle 6s ease-out 200ms infinite;
+}
+
+/* Respect prefers-reduced-motion across every animation */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page-fade,
+  .fade-up,
+  .verdict-pop,
+  .word-fade,
+  .animate-alert-entry,
+  .phone-verdict-reveal,
+  .phone-chip-1,
+  .phone-chip-2 {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .phone-scan-beam {
+    display: none !important;
+  }
 }

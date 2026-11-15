@@ -3,6 +3,7 @@ import { api } from '../api/endpoints';
 import { ErrorBox } from '../components/ErrorBox';
 import { Loader } from '../components/Loader';
 import { getScamTypeLabel } from '../utils/scamTypeLabels';
+import { useCountUp } from '../hooks/useCountUp';
 import {
   Search,
   ShieldCheck,
@@ -26,6 +27,12 @@ export function CheckPayPage() {
   const [reportScamType, setReportScamType] = useState('kyc_bank');
   const [reporting, setReporting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+
+  const animatedReportCount = useCountUp(
+    result?.report_count ?? 0,
+    900,
+    Boolean(result && !loading && result.verdict === 'reported')
+  );
 
   const runLookup = async (rawValue) => {
     const query = (rawValue !== undefined ? rawValue : searchValue).trim();
@@ -103,7 +110,7 @@ export function CheckPayPage() {
       <ErrorBox error={error} />
 
       {/* Main Big Search Input Form */}
-      <div className="bg-white rounded-3xl border-3 border-navy-900 shadow-lg p-6 sm:p-8 space-y-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-3 border-navy-900 shadow-lg p-6 sm:p-8 space-y-4">
         <form onSubmit={handleSearch} className="space-y-4">
           <label
             htmlFor="lookup-input"
@@ -144,28 +151,28 @@ export function CheckPayPage() {
           <button
             type="button"
             onClick={() => handleSampleClick('+910000000001')}
-            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
+            className="min-h-[48px] px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-mono transition-colors"
           >
             +910000000001
           </button>
           <button
             type="button"
             onClick={() => handleSampleClick('kyc.refund.demo@oksbi')}
-            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
+            className="min-h-[48px] px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-mono transition-colors"
           >
             kyc.refund.demo@oksbi
           </button>
           <button
             type="button"
             onClick={() => handleSampleClick('sbi-kyc-update.example')}
-            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
+            className="min-h-[48px] px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-mono transition-colors"
           >
             sbi-kyc-update.example
           </button>
           <button
             type="button"
             onClick={() => handleSampleClick('parcel-customs-fee.example')}
-            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-mono transition-colors"
+            className="min-h-[48px] px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-mono transition-colors"
           >
             parcel-customs-fee.example
           </button>
@@ -173,14 +180,14 @@ export function CheckPayPage() {
       </div>
 
       {loading && (
-        <div className="bg-white rounded-3xl p-10 border border-slate-200 text-center">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-10 border border-slate-200 text-center">
           <Loader message="Checking national community database..." />
         </div>
       )}
 
       {/* BIG RESULT DISPLAY AS SPECIFIED */}
       {result && !loading && (
-        <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="space-y-6 fade-up">
           {result.verdict === 'reported' ? (
             /* RED REPORTED VERDICT */
             <div className="bg-red-50 border-3 border-red-500 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md">
@@ -193,8 +200,8 @@ export function CheckPayPage() {
                     <span className="text-xs font-black uppercase tracking-wider text-red-700 bg-red-100 px-3 py-0.5 rounded-full">
                       Known Fraud Identifier
                     </span>
-                    <h2 className="text-2xl sm:text-3xl font-black text-red-950 mt-1">
-                      ⚠️ Reported {result.report_count} times
+                    <h2 className="text-2xl sm:text-3xl font-black text-red-950 mt-1 tabular-nums">
+                      ⚠️ Reported {animatedReportCount} times
                       {result.last_7_days_count > 0 && (
                         <span className="text-red-700 ml-1">
                           ({result.last_7_days_count} this week)

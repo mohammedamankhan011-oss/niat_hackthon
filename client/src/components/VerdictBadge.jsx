@@ -40,20 +40,20 @@ export function VerdictBadge({ riskLevel, score, size = 'default' }) {
 
   if (size === 'sm') {
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${config.bg} ${config.text} ${config.border}`}>
-        <Icon className="w-3.5 h-3.5" />
-        {config.label}
+      <span className={`verdict-pop inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${config.bg} ${config.text} ${config.border}`}>
+        <Icon className="w-3.5 h-3.5 shrink-0" />
+        <span>{config.label}</span>
         {score !== undefined && <span className="opacity-75">({score}%)</span>}
       </span>
     );
   }
 
   return (
-    <div className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 ${config.bg} ${config.border} ${config.text}`}>
-      <div className={`p-2 rounded-xl ${config.badge}`}>
+    <div className={`verdict-pop inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 ${config.bg} ${config.border} ${config.text}`}>
+      <div className={`p-2 rounded-xl shrink-0 ${config.badge}`}>
         <Icon className="w-6 h-6" />
       </div>
-      <div>
+      <div className="text-left">
         <div className="text-lg font-black tracking-wide uppercase leading-none">
           {config.label}
         </div>

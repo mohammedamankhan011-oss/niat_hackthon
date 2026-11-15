@@ -136,7 +136,7 @@ export function ScanPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto py-16 px-4">
-        <div className="bg-white rounded-3xl p-10 border border-slate-200 shadow-sm text-center">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-10 border border-slate-200 shadow-sm text-center">
           <Loader message="Analyzing message for cyber threats & fraud signatures..." />
         </div>
       </div>
@@ -158,7 +158,7 @@ export function ScanPage() {
       <ErrorBox error={error} />
 
       {/* Language Picker */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="bg-white/90 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-sm">
         <LanguagePicker onChange={(l) => setSelectedLang(l)} />
       </div>
 
@@ -211,7 +211,7 @@ export function ScanPage() {
       </div>
 
       {/* Input Tabs: Paste Text / Upload Screenshot */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden">
         <div className="grid grid-cols-2 border-b border-slate-200">
           <button
             type="button"

@@ -87,11 +87,11 @@ export function AlertsPage() {
       <ErrorBox error={error} />
 
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading family safety alerts..." />
         </div>
       ) : alerts.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 border border-slate-200 text-center space-y-4">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200 text-center space-y-4">
           <CheckCircle className="w-14 h-14 text-emerald-500 mx-auto" />
           <h3 className="text-2xl font-black text-slate-900">
             All Clear! No Active Alerts
@@ -107,8 +107,8 @@ export function AlertsPage() {
               key={alert.id}
               className={`rounded-2xl p-6 border-2 transition-all shadow-sm ${
                 alert.is_read
-                  ? 'bg-white border-slate-200 opacity-80'
-                  : 'bg-red-50/70 border-red-300 shadow-md ring-1 ring-red-200'
+                  ? 'bg-white/90 backdrop-blur-sm border-slate-200 opacity-85'
+                  : 'bg-red-50/90 backdrop-blur-sm border-red-300 shadow-md ring-1 ring-red-200'
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -166,7 +166,7 @@ export function AlertsPage() {
                     <button
                       type="button"
                       onClick={() => handleMarkAsRead(alert.id)}
-                      className="min-h-[44px] px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white rounded-xl transition-colors border border-slate-300"
+                      className="min-h-[48px] px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white rounded-xl transition-colors border border-slate-300"
                     >
                       Mark Read
                     </button>
@@ -175,7 +175,7 @@ export function AlertsPage() {
                   {alert.scan?.id && (
                     <Link
                       to={`/scans/${alert.scan.id}`}
-                      className="min-h-[44px] px-5 py-2.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-xl text-sm shadow flex items-center gap-1.5 transition-colors"
+                      className="min-h-[48px] px-5 py-2.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-xl text-sm shadow flex items-center gap-1.5 transition-colors"
                     >
                       <span>Open Scan Report</span>
                       <ArrowRight className="w-4 h-4" />

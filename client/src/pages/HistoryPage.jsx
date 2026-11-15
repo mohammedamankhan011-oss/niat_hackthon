@@ -116,7 +116,7 @@ export function HistoryPage() {
       <ErrorBox error={error} />
 
       {/* Filter Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
           <Filter className="w-4 h-4 text-navy-900" />
           <span>Filter records by verdict & input type:</span>
@@ -136,7 +136,7 @@ export function HistoryPage() {
                 key={v.id}
                 type="button"
                 onClick={() => setVerdictFilter(v.id)}
-                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                className={`min-h-[48px] px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
                   verdictFilter === v.id
                     ? 'bg-navy-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -160,7 +160,7 @@ export function HistoryPage() {
                 key={t.id}
                 type="button"
                 onClick={() => setTypeFilter(t.id)}
-                className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                className={`min-h-[48px] px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
                   typeFilter === t.id
                     ? 'bg-navy-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -175,11 +175,11 @@ export function HistoryPage() {
 
       {/* History Items List */}
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading safety records..." />
         </div>
       ) : filteredScans.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 border border-slate-200 text-center space-y-4">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200 text-center space-y-4">
           <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
           <h3 className="text-xl font-bold text-slate-800">No records found</h3>
           <p className="text-slate-600 max-w-sm mx-auto">
@@ -199,7 +199,7 @@ export function HistoryPage() {
           {filteredScans.map((item) => (
             <div
               key={item.id}
-              className="bg-white border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+              className="bg-white/90 backdrop-blur-sm border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
             >
               <Link
                 to={`/scans/${item.id}`}
@@ -244,7 +244,7 @@ export function HistoryPage() {
 
                 <Link
                   to={`/scans/${item.id}`}
-                  className="min-h-[44px] px-3 py-2 bg-slate-100 hover:bg-slate-200 text-navy-900 rounded-xl font-bold text-sm flex items-center gap-1"
+                  className="min-h-[48px] px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-navy-900 rounded-xl font-bold text-sm flex items-center gap-1"
                 >
                   <span>View</span>
                   <ChevronRight className="w-4 h-4" />
@@ -254,7 +254,7 @@ export function HistoryPage() {
                   type="button"
                   onClick={() => setDeleteTarget(item)}
                   aria-label="Delete this scan record"
-                  className="min-h-[44px] min-w-[44px] p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  className="min-h-[48px] min-w-[48px] p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
