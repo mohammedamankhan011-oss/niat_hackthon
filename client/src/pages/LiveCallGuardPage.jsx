@@ -1,38 +1,92 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/endpoints';
+import { analyzeContentHeuristic } from '../api/mocks';
 import { useAuth } from '../context/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useLiveCallAnalysis } from '../hooks/useLiveCallAnalysis';
 import { RiskMeter } from '../components/RiskMeter';
 import { VerdictBadge } from '../components/VerdictBadge';
-import { LanguagePicker } from '../components/LanguagePicker';
 import { ScamAlertOverlay } from '../components/ScamAlertOverlay';
 import { ErrorBox } from '../components/ErrorBox';
-import { AudioWaveform } from '../components/AudioWaveform';
-import { MicDiagnosticModal } from '../components/MicDiagnosticModal';
 import { CBI_DIGITAL_ARREST_DEMO } from '../utils/demoCallScript';
-import { t } from '../utils/translations';
 import {
   PhoneCall,
   PhoneOff,
   Mic,
   MicOff,
-  Play,
   Volume2,
   AlertTriangle,
-  ShieldCheck,
-  RefreshCw,
   Info,
   Keyboard,
-  Sparkles,
-  Upload,
-  FileAudio,
-  Users,
-  Smartphone,
-  Activity,
-  CheckCircle2
+  Sparkles
 } from 'lucide-react';
+
+const DEMO_STAGE_UPDATES = [
+  {
+    risk_level: 'safe',
+    risk_score: 24,
+    scam_type: 'none',
+    triggers: [],
+    advice: 'Caller claims to be from Customs / Courier. Stay cautious and do not share Aadhaar or OTP.',
+    say_this: ''
+  },
+  {
+    risk_level: 'suspicious',
+    risk_score: 62,
+    scam_type: 'digital_arrest',
+    triggers: [
+      {
+        phrase: '140 grams of MDMA narcotics',
+        why: 'Scammers fabricate illegal drug parcel claims to terrify victims.'
+      }
+    ],
+    advice: 'WARNING: Classic fake parcel accusation! Real customs officers never conduct phone interrogations.',
+    say_this: 'Send any official notice by registered post. I will not join video calls.'
+  },
+  {
+    risk_level: 'scam',
+    risk_score: 89,
+    scam_type: 'digital_arrest',
+    triggers: [
+      {
+        phrase: '140 grams of MDMA narcotics',
+        why: 'Scammers fabricate illegal drug parcel claims to terrify victims.'
+      },
+      {
+        phrase: 'digital arrest',
+        why: 'Indian law has no provision for Digital Arrest. It is 100% fake.'
+      },
+      {
+        phrase: 'connect on Skype video call',
+        why: 'Police and CBI never interrogate citizens on Skype or WhatsApp.'
+      }
+    ],
+    advice: 'DANGER! This is a CBI Digital Arrest extortion scam. Hang up immediately!',
+    say_this: 'I am disconnecting now and verifying with my local police station and 1930.'
+  },
+  {
+    risk_level: 'scam',
+    risk_score: 98,
+    scam_type: 'digital_arrest',
+    triggers: [
+      {
+        phrase: 'digital arrest',
+        why: 'Indian law has no provision for Digital Arrest. It is 100% fake.'
+      },
+      {
+        phrase: 'connect on Skype video call',
+        why: 'Police and CBI never interrogate citizens on Skype or WhatsApp.'
+      },
+      {
+        phrase: 'RBI Safe Verification Account',
+        why: 'The RBI and Supreme Court never ask citizens to transfer savings for verification.'
+      }
+    ],
+    advice: 'CRITICAL SCAM ALERT (98/100)! Hang up now! Do not transfer any money.',
+    say_this: 'This is a known cyber fraud. I am hanging up and calling 1930 right now.'
+  }
+];
 
 export function LiveCallGuardPage() {
   const { language } = useAuth();
@@ -40,122 +94,115 @@ export function LiveCallGuardPage() {
 
   const [selectedLang, setSelectedLang] = useState(language || 'en');
   const [isDemoRunning, setIsDemoRunning] = useState(false);
+  const [demoMicLevel, setDemoMicLevel] = useState(0);
   const [manualTypedText, setManualTypedText] = useState('');
   const [savingCall, setSavingCall] = useState(false);
-  const [uploadingAudio, setUploadingAudio] = useState(false);
-  const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const [error, setError] = useState(null);
 
-  const demoIntervalRef = useRef(null);
-  const audioInputRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const demoTimersRef = useRef([]);
 
-  // Reliable Audio Capture & Speech Recognition Hook
+  // Web Speech + MediaRecorder + Web Audio Analyser Hook
   const {
-    isSupported,
     isListening,
     transcript,
     interimText,
-    audioLevel,
-    frequencyData,
-    guardState,
-    statusMessage,
-    monitoringMode,
-    setMonitoringMode,
+    micLevel,
+    noAudioWarning,
+    serviceNotice,
+    error: micError,
     start: startMic,
     stop: stopMic,
     reset: resetTranscript,
-    appendText,
     setFullTranscript
   } = useSpeechRecognition({
     language: selectedLang
   });
 
-  // Live Call Analysis Hook
+  // Live Call Analysis Hook (10s initial, 15s recurring when transcript grows)
   const {
     analysis,
     isAnalyzing,
     scamAlertActive,
-    lastCheckTime,
+    analysisNotice,
     performAnalysis,
+    updateAnalysisState,
     dismissAlert,
     resetAnalysis
   } = useLiveCallAnalysis({
     transcript,
     language: selectedLang,
-    enabled: isListening || isDemoRunning
+    enabled: isListening
   });
 
-  // Cleanup demo timer on unmount
+  const clearDemoTimers = () => {
+    demoTimersRef.current.forEach((id) => clearTimeout(id));
+    demoTimersRef.current = [];
+  };
+
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
-      if (demoIntervalRef.current) {
-        clearInterval(demoIntervalRef.current);
-      }
+      isMountedRef.current = false;
+      clearDemoTimers();
     };
   }, []);
 
-  // Handle Demo Mode Simulation
+  // Offline-style Demo Mode: scripted transcript appears line by line, risk climbs, alert overlay fires
   const handleStartDemo = () => {
     if (isListening) stopMic();
+    clearDemoTimers();
     resetTranscript();
     resetAnalysis();
-    setIsDemoRunning(true);
     setError(null);
+    setIsDemoRunning(true);
+    setDemoMicLevel(45);
 
-    // Flatten demo phrases into words
-    const allWords = [];
-    CBI_DIGITAL_ARREST_DEMO.forEach(segment => {
-      const words = segment.text.split(' ');
-      words.forEach(w => allWords.push(w));
-      allWords.push('__PAUSE__');
+    let accumulatedLines = '';
+
+    CBI_DIGITAL_ARREST_DEMO.forEach((segment, idx) => {
+      const lineDelay = idx * 2400 + 300;
+
+      const tId = setTimeout(() => {
+        if (!isMountedRef.current) return;
+        accumulatedLines = accumulatedLines
+          ? `${accumulatedLines}\n\n${segment.text}`
+          : segment.text;
+        setFullTranscript(accumulatedLines);
+        setDemoMicLevel(55 + ((idx * 17) % 35));
+
+        const stage = DEMO_STAGE_UPDATES[Math.min(idx, DEMO_STAGE_UPDATES.length - 1)];
+        updateAnalysisState(stage);
+
+        if (idx === CBI_DIGITAL_ARREST_DEMO.length - 1) {
+          setIsDemoRunning(false);
+          setDemoMicLevel(0);
+        }
+      }, lineDelay);
+
+      demoTimersRef.current.push(tId);
     });
-
-    let wordIndex = 0;
-    let accumulated = '';
-
-    if (demoIntervalRef.current) clearInterval(demoIntervalRef.current);
-
-    demoIntervalRef.current = setInterval(() => {
-      if (wordIndex >= allWords.length) {
-        clearInterval(demoIntervalRef.current);
-        setIsDemoRunning(false);
-        performAnalysis(accumulated);
-        return;
-      }
-
-      const word = allWords[wordIndex];
-      wordIndex++;
-
-      if (word === '__PAUSE__') {
-        accumulated += '\n\n';
-      } else {
-        accumulated += (accumulated.endsWith('\n\n') || !accumulated ? '' : ' ') + word;
-      }
-
-      setFullTranscript(accumulated);
-    }, 110); // Spoken word cadence
   };
 
   const handleStopDemo = () => {
-    if (demoIntervalRef.current) {
-      clearInterval(demoIntervalRef.current);
-    }
+    clearDemoTimers();
     setIsDemoRunning(false);
+    setDemoMicLevel(0);
   };
 
-  // Toggle Microphone
-  const handleToggleListening = () => {
+  // Toggle Microphone Listening
+  const handleToggleListening = async () => {
     if (isDemoRunning) handleStopDemo();
 
     if (isListening) {
       stopMic();
     } else {
       setError(null);
-      startMic();
+      await startMic();
     }
   };
 
-  // Stop button -> POST /api/calls with the full transcript -> go to /scans/:id
+  // Stop button -> POST /api/calls with the full transcript -> go to /scans/:id with router state
   const handleStopAndSave = async () => {
     if (isListening) stopMic();
     if (isDemoRunning) handleStopDemo();
@@ -173,66 +220,43 @@ export function LiveCallGuardPage() {
         language: selectedLang
       });
 
+      if (!isMountedRef.current) return;
+
       if (res?.scan?.id) {
-        navigate(`/scans/${res.scan.id}`);
+        navigate(`/scans/${res.scan.id}`, { state: { scan: res.scan } });
       } else {
         throw new Error('Failed to create scan report from call.');
       }
     } catch (err) {
-      console.error('Save call failed:', err);
-      setError(err);
-      setSavingCall(false);
+      if (!isMountedRef.current) return;
+      // Offline fallback so demo/call report always opens
+      const fallbackAnalysis = analyzeContentHeuristic(textToSave, selectedLang);
+      const fallbackScan = {
+        id: 'scan_call_' + Date.now(),
+        input_type: 'call',
+        message_text: textToSave,
+        ...fallbackAnalysis,
+        created_at: new Date().toISOString()
+      };
+      navigate(`/scans/${fallbackScan.id}`, { state: { scan: fallbackScan } });
     }
   };
 
-  // Handle Call Audio File Upload Fallback
-  const handleAudioUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (isListening) stopMic();
-    if (isDemoRunning) handleStopDemo();
-
-    setUploadingAudio(true);
-    setError(null);
-
-    try {
-      const res = await api.calls.analyzeAudio({
-        audioFile: file,
-        language: selectedLang,
-        save: true
-      });
-
-      if (res?.scan?.id) {
-        navigate(`/scans/${res.scan.id}`);
-      } else if (res?.transcript) {
-        setFullTranscript(res.transcript);
-        if (res.analysis) {
-          performAnalysis(res.transcript);
-        }
-      }
-    } catch (err) {
-      console.error('Audio upload failed:', err);
-      setError(err);
-    } finally {
-      setUploadingAudio(false);
-      if (audioInputRef.current) {
-        audioInputRef.current.value = '';
-      }
-    }
-  };
-
-  // Manual Typing Analysis
+  // Backup Manual Textbox Analyze button
   const handleAnalyzeManualText = () => {
-    if (!manualTypedText.trim()) return;
-    setFullTranscript(manualTypedText);
-    performAnalysis(manualTypedText);
+    const cleaned = manualTypedText.trim();
+    if (!cleaned) return;
+    const combined = transcript.trim()
+      ? `${transcript.trim()}\n${cleaned}`
+      : cleaned;
+    setFullTranscript(combined);
+    performAnalysis(combined, { force: true });
   };
 
-  // Highlight trigger phrases in transcript & fade in words as they appear
+  // Highlight trigger phrases in transcript & show interim preview in grey
   const renderHighlightedTranscript = () => {
-    const fullText = (transcript + (interimText ? ' ' + interimText : '')).trim();
-    if (!fullText) {
+    const confirmedText = transcript.trim();
+    if (!confirmedText && !interimText) {
       return (
         <span className="text-slate-400 italic">
           Spoken words will appear here in real-time as the caller speaks on speaker...
@@ -241,11 +265,14 @@ export function LiveCallGuardPage() {
     }
 
     const phrases = (analysis.triggers || [])
-      .map(t => t.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .map((t) => t.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .filter(Boolean);
 
-    if (phrases.length === 0) {
-      return fullText.split(/(\s+)/).map((token, idx) =>
+    let confirmedNodes;
+    if (!confirmedText) {
+      confirmedNodes = null;
+    } else if (phrases.length === 0) {
+      confirmedNodes = confirmedText.split(/(\s+)/).map((token, idx) =>
         /^\s+$/.test(token) ? (
           <span key={idx}>{token}</span>
         ) : (
@@ -254,34 +281,46 @@ export function LiveCallGuardPage() {
           </span>
         )
       );
+    } else {
+      const regex = new RegExp(`(${phrases.join('|')})`, 'gi');
+      const parts = confirmedText.split(regex);
+      confirmedNodes = parts.map((part, i) => {
+        const isMatch = phrases.some((p) => p.toLowerCase() === part.toLowerCase());
+        if (isMatch) {
+          return (
+            <mark
+              key={i}
+              className="word-fade bg-red-200 text-red-950 font-black px-1.5 py-0.5 rounded border border-red-400"
+            >
+              {part}
+            </mark>
+          );
+        }
+        return part.split(/(\s+)/).map((token, j) =>
+          /^\s+$/.test(token) ? (
+            <span key={`${i}-${j}`}>{token}</span>
+          ) : (
+            <span key={`${i}-${j}`} className="word-fade">
+              {token}
+            </span>
+          )
+        );
+      });
     }
 
-    const regex = new RegExp(`(${phrases.join('|')})`, 'gi');
-    const parts = fullText.split(regex);
-
-    return parts.map((part, i) => {
-      const isMatch = phrases.some(p => p.toLowerCase() === part.toLowerCase());
-      if (isMatch) {
-        return (
-          <mark
-            key={i}
-            className="word-fade bg-red-200 text-red-950 font-black px-1.5 py-0.5 rounded border border-red-400"
-          >
-            {part}
-          </mark>
-        );
-      }
-      return part.split(/(\s+)/).map((token, j) =>
-        /^\s+$/.test(token) ? (
-          <span key={`${i}-${j}`}>{token}</span>
-        ) : (
-          <span key={`${i}-${j}`} className="word-fade">
-            {token}
+    return (
+      <>
+        {confirmedNodes}
+        {interimText && (
+          <span className="text-slate-400 italic ml-1.5">
+            {interimText}
           </span>
-        )
-      );
-    });
+        )}
+      </>
+    );
   };
+
+  const activeLevel = isDemoRunning ? demoMicLevel : micLevel;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-8">
@@ -296,46 +335,27 @@ export function LiveCallGuardPage() {
         language={selectedLang}
       />
 
-      {/* Microphone Diagnostic Modal */}
-      <MicDiagnosticModal
-        isOpen={isDiagnosticOpen}
-        onClose={() => setIsDiagnosticOpen(false)}
-        language={selectedLang}
-      />
-
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-red-600 via-rose-600 to-navy-950 text-white rounded-3xl p-6 sm:p-8 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="p-2 bg-white/20 rounded-xl">
-              <PhoneCall className="w-6 h-6 text-white animate-pulse" />
+              <PhoneCall className="w-6 h-6 text-white" />
             </span>
             <span className="text-sm font-black uppercase tracking-widest text-red-200">
               ScamShield AI Live Call Guard
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* 5-second Microphone Diagnostic Test Button */}
-            <button
-              type="button"
-              onClick={() => setIsDiagnosticOpen(true)}
-              className="min-h-[48px] px-3.5 py-2 bg-navy-950/70 hover:bg-navy-950 text-white font-bold rounded-xl text-xs sm:text-sm border border-white/20 shadow flex items-center gap-1.5 transition-all focus:ring-2 focus:ring-white"
-            >
-              <Mic className="w-4 h-4 text-emerald-400" />
-              <span>🎙️ Test Mic (5s)</span>
-            </button>
-
-            {/* Quick Demo Simulator Button */}
-            <button
-              type="button"
-              onClick={isDemoRunning ? handleStopDemo : handleStartDemo}
-              className="min-h-[48px] px-4 py-2 bg-white hover:bg-slate-100 text-red-700 font-black rounded-xl text-sm shadow flex items-center gap-2 transition-all focus:ring-2 focus:ring-white"
-            >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{isDemoRunning ? '⏹ Stop Demo' : '▶ Demo Mode (Simulate Call)'}</span>
-            </button>
-          </div>
+          {/* Secondary Button: Try Demo Call */}
+          <button
+            type="button"
+            onClick={isDemoRunning ? handleStopDemo : handleStartDemo}
+            className="min-h-[48px] px-4 py-2 bg-white hover:bg-slate-100 text-red-700 font-black rounded-xl text-sm shadow flex items-center gap-2 transition-all focus:ring-2 focus:ring-white"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>{isDemoRunning ? '⏹ Stop Demo' : '▶ Try Demo Call'}</span>
+          </button>
         </div>
 
         <div className="space-y-2">
@@ -347,141 +367,127 @@ export function LiveCallGuardPage() {
           </p>
         </div>
 
-        {/* Honest Architecture & Elder Instructions Banner */}
-        <div className="bg-white/10 rounded-2xl p-4 border border-white/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm font-bold">
-          <div className="flex items-center gap-2.5">
-            <Info className="w-5 h-5 text-amber-300 shrink-0" />
-            <span>
-              Instructions: Put call on speakerphone, place phone next to this device, and tap Start Listening.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsDiagnosticOpen(true)}
-            className="text-amber-200 underline text-xs font-black shrink-0 hover:text-white"
-          >
-            Check Mic Status →
-          </button>
-        </div>
-      </div>
-
-      <ErrorBox error={error} />
-
-      {/* Language Picker & Monitoring Mode Switcher */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Monitoring Mode (Second Device vs This Device) */}
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Monitoring Mode:
-            </span>
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              Honest Fallback Protection
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMonitoringMode('second_device')}
-              className={`min-h-[48px] py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
-                monitoringMode === 'second_device'
-                  ? 'bg-navy-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Users className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>Second Device (Best)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMonitoringMode('this_device')}
-              className={`min-h-[48px] py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
-                monitoringMode === 'this_device'
-                  ? 'bg-navy-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Smartphone className="w-4 h-4 shrink-0 text-sky-400" />
-              <span>This Device (Speaker)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Language Picker */}
-        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-2">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-            Listening Language:
+        {/* Step-by-Step Instructions */}
+        <div className="bg-white/10 rounded-2xl p-4 border border-white/20 flex items-center gap-3 text-base font-bold">
+          <Info className="w-6 h-6 text-amber-300 shrink-0" />
+          <span>
+            Instructions: Put the call on speaker, then tap Start Listening below.
           </span>
-          <div className="flex items-center gap-2">
-            {[
-              { code: 'hi', label: 'हिंदी (Hindi)' },
-              { code: 'en', label: 'English (India)' },
-              { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' }
-            ].map((lang) => (
-              <button
-                key={lang.code}
-                type="button"
-                onClick={() => setSelectedLang(lang.code)}
-                className={`flex-1 min-h-[48px] py-1.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  selectedLang === lang.code
-                    ? 'bg-navy-900 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {lang.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Second Device Mode Notice */}
-      {monitoringMode === 'second_device' && (
-        <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-start gap-3 text-xs sm:text-sm text-sky-950 font-medium">
-          <CheckCircle2 className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-bold text-sky-900">
-              Why Second-Device Monitoring is Recommended:
-            </span>
-            <p>
-              Mobile phone operating systems (Android & iOS) isolate the microphone during active SIM and WhatsApp calls to protect privacy, and hardware echo-cancellation suppresses the phone's own speaker. Placing a <strong>second device</strong> (family phone, tablet, or laptop) running ScamShield right next to the call speaker ensures 100% genuine voice capture and zero OS blocking.
-            </p>
-          </div>
+      {/* Friendly Microphone / Page Error Box */}
+      <ErrorBox error={micError || error} />
+
+      {/* Friendly 503 Service Notice (keeps listening without crashing) */}
+      {(serviceNotice || analysisNotice) && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-amber-50 border-2 border-amber-300 text-amber-950 rounded-2xl p-4 text-sm font-bold flex items-center gap-2.5"
+        >
+          <Info className="w-5 h-5 text-amber-700 shrink-0" />
+          <span>{serviceNotice || analysisNotice}</span>
         </div>
       )}
 
+      {/* Language Picker */}
+      <div className="bg-white/95 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <span className="text-sm font-bold text-slate-700">
+          Listening Language:
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { code: 'hi', label: 'हिंदी (Hindi)' },
+            { code: 'en', label: 'English (India)' },
+            { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' }
+          ].map((lang) => (
+            <button
+              key={lang.code}
+              type="button"
+              onClick={() => setSelectedLang(lang.code)}
+              className={`min-h-[48px] px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                selectedLang === lang.code
+                  ? 'bg-navy-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Live Risk Meter & Live Verdict Card */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-8 space-y-6">
+      <div className="bg-white/95 rounded-3xl border-2 border-slate-200 shadow-md p-6 sm:p-8 space-y-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex-1 space-y-3 text-center md:text-left">
-            {/* Real Accurate State Indicator */}
-            <div className="flex items-center justify-center md:justify-start gap-2">
+          <div className="flex-1 w-full space-y-4 text-center md:text-left">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
               <span
                 className={`w-3 h-3 rounded-full ${
-                  isDemoRunning
-                    ? 'bg-amber-500 animate-ping'
-                    : isListening
-                    ? audioLevel > 5
-                      ? 'bg-emerald-500 animate-pulse'
-                      : 'bg-amber-400'
-                    : 'bg-slate-400'
+                  isListening || isDemoRunning ? 'bg-red-500 animate-pulse' : 'bg-slate-400'
                 }`}
               />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-600">
                 {isDemoRunning
-                  ? 'Demo Simulation Active'
+                  ? 'Demo Call Simulation Active'
                   : isListening
-                  ? statusMessage || 'Microphone Active'
+                  ? 'Microphone Listening to Speaker'
                   : 'Guard Standby'}
               </span>
+
+              {isAnalyzing && (
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full inline-flex items-center gap-1.5 border border-amber-300">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Analyzing…</span>
+                </span>
+              )}
+
+              {analysis.source === 'rules' && (
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+                  Quick check (AI busy)
+                </span>
+              )}
             </div>
+
+            {/* Live Microphone Level Bar (Web Audio AnalyserNode) */}
+            {(isListening || isDemoRunning) && (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2 text-left">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <Volume2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Live Mic Input Level</span>
+                  </span>
+                  <span className="tabular-nums">{activeLevel}%</span>
+                </div>
+                <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-150 ${
+                      activeLevel > 75
+                        ? 'bg-red-500'
+                        : activeLevel > 15
+                        ? 'bg-emerald-500'
+                        : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${Math.max(4, activeLevel)}%` }}
+                  />
+                </div>
+
+                {noAudioWarning && !isDemoRunning && (
+                  <div className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>No audio detected — Put the call on speaker and move closer.</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <VerdictBadge
               riskLevel={analysis.risk_level}
               score={analysis.risk_score}
             />
 
-            <div className="bg-slate-50 border-l-4 border-navy-900 p-4 rounded-r-xl">
+            <div className="bg-slate-50 border-l-4 border-navy-900 p-4 rounded-r-xl text-left">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
                 Live AI Advice
               </div>
@@ -500,22 +506,12 @@ export function LiveCallGuardPage() {
           </div>
         </div>
 
-        {/* Real Live Audio Waveform & Level Meter */}
-        <AudioWaveform
-          audioLevel={audioLevel}
-          frequencyData={frequencyData}
-          isListening={isListening}
-          state={guardState}
-          statusMessage={statusMessage}
-          onSwitchToSecondDevice={() => setMonitoringMode('second_device')}
-        />
-
-        {/* Live Controls: Start Listening / Stop & Save */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+        {/* Primary Controls: Start Listening / Try Demo Call / Stop & View Report */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-4 border-t border-slate-200">
           <button
             type="button"
             onClick={handleToggleListening}
-            className={`min-h-[56px] py-4 px-6 rounded-2xl text-xl font-black transition-all shadow-md flex items-center justify-center gap-3 ${
+            className={`min-h-[56px] py-3.5 px-5 rounded-2xl text-lg font-black transition-all shadow-md flex items-center justify-center gap-2.5 ${
               isListening
                 ? 'bg-amber-600 hover:bg-amber-700 text-white'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -523,12 +519,12 @@ export function LiveCallGuardPage() {
           >
             {isListening ? (
               <>
-                <MicOff className="w-6 h-6" />
+                <MicOff className="w-6 h-6 shrink-0" />
                 <span>Pause Listening</span>
               </>
             ) : (
               <>
-                <Mic className="w-6 h-6" />
+                <Mic className="w-6 h-6 shrink-0" />
                 <span>Start Listening</span>
               </>
             )}
@@ -536,27 +532,36 @@ export function LiveCallGuardPage() {
 
           <button
             type="button"
+            onClick={isDemoRunning ? handleStopDemo : handleStartDemo}
+            className="min-h-[56px] py-3.5 px-5 bg-white hover:bg-slate-50 text-navy-950 border-2 border-navy-900 rounded-2xl text-lg font-black transition-all shadow-sm flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+            <span>{isDemoRunning ? 'Stop Demo' : 'Try Demo Call'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleStopAndSave}
             disabled={savingCall || (!transcript.trim() && !manualTypedText.trim())}
-            className="min-h-[56px] py-4 px-6 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-300 text-white rounded-2xl text-xl font-black transition-all shadow-md flex items-center justify-center gap-3"
+            className="min-h-[56px] py-3.5 px-5 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-300 text-white rounded-2xl text-lg font-black transition-all shadow-md flex items-center justify-center gap-2.5"
           >
-            <PhoneOff className="w-6 h-6" />
-            <span>{savingCall ? 'Generating Report...' : 'Stop & View Report'}</span>
+            <PhoneOff className="w-5 h-5 shrink-0" />
+            <span>{savingCall ? 'Saving Report…' : 'Stop & View Report'}</span>
           </button>
         </div>
       </div>
 
       {/* Live Transcript Display Box */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div className="bg-white/95 rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
             <h3 className="text-xl font-black text-navy-950">
               Live Call Transcript
             </h3>
             {isAnalyzing && (
-              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-amber-200">
+              <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 border border-amber-300">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Analyzing words...</span>
+                <span>Analyzing…</span>
               </span>
             )}
           </div>
@@ -565,11 +570,12 @@ export function LiveCallGuardPage() {
             <button
               type="button"
               onClick={() => {
+                if (isDemoRunning) handleStopDemo();
                 resetTranscript();
                 resetAnalysis();
                 setManualTypedText('');
               }}
-              className="text-xs font-bold text-red-600 hover:underline"
+              className="min-h-[48px] px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl"
             >
               Clear Transcript
             </button>
@@ -577,7 +583,7 @@ export function LiveCallGuardPage() {
         </div>
 
         {/* Highlighted text container */}
-        <div className="min-h-[160px] max-h-[320px] overflow-y-auto p-4 rounded-2xl bg-slate-50 border border-slate-200 text-lg leading-relaxed font-medium">
+        <div className="min-h-[160px] max-h-[320px] overflow-y-auto p-4 rounded-2xl bg-slate-50 border border-slate-200 text-lg leading-relaxed font-medium whitespace-pre-line">
           {renderHighlightedTranscript()}
         </div>
 
@@ -607,84 +613,42 @@ export function LiveCallGuardPage() {
         )}
       </div>
 
-      {/* Fallback Section: Upload Call Recording (Post-Call Analysis) */}
-      <div className="bg-slate-50 rounded-3xl p-6 sm:p-7 border-2 border-slate-200 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 bg-navy-900 text-white rounded-xl">
-              <FileAudio className="w-6 h-6" />
-            </span>
-            <div>
-              <h4 className="text-lg font-black text-slate-900">
-                Upload Call Recording / Audio Note
-              </h4>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                Already finished a call? Upload a permitted voice recording (.mp3, .m4a, .wav, .webm) for full Gemini scam analysis.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0">
-            <input
-              ref={audioInputRef}
-              type="file"
-              accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg,.aac"
-              onChange={handleAudioUpload}
-              className="hidden"
-              id="call-audio-upload"
-            />
-            <label
-              htmlFor="call-audio-upload"
-              className={`min-h-[44px] px-5 py-2.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-xl text-sm shadow cursor-pointer flex items-center justify-center gap-2 transition-all ${
-                uploadingAudio ? 'opacity-50 pointer-events-none' : ''
-              }`}
-            >
-              {uploadingAudio ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Transcribing & Analysing...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  <span>Select Audio File</span>
-                </>
-              )}
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Fallback Box for Typing Mode */}
-      <div className="bg-slate-100 rounded-3xl p-6 border-2 border-slate-300 space-y-4">
+      {/* Backup Textbox: "Type what the caller said" */}
+      <div className="bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-slate-200 shadow-sm space-y-4">
         <div className="flex items-start gap-3">
-          <Keyboard className="w-6 h-6 text-slate-700 shrink-0 mt-1" />
+          <Keyboard className="w-6 h-6 text-navy-900 shrink-0 mt-1" />
           <div>
-            <h4 className="text-lg font-black text-slate-900">
-              Manual Call Notes / Key Phrases
-            </h4>
+            <label
+              htmlFor="caller-typed-input"
+              className="block text-lg font-black text-navy-950"
+            >
+              Type what the caller said (Backup Input)
+            </label>
             <p className="text-sm text-slate-600 font-medium">
-              If you prefer typing or are in a noisy room, type key phrases spoken by the caller:
+              If you are in a noisy room or on the same phone as the call, type what the caller is asking for below and tap Analyze:
             </p>
           </div>
         </div>
 
         <div className="space-y-3">
           <textarea
+            id="caller-typed-input"
             rows={3}
             value={manualTypedText}
             onChange={(e) => setManualTypedText(e.target.value)}
-            placeholder="e.g. Police officer saying MDMA parcel in Mumbai airport and asking to connect on Skype..."
+            placeholder="e.g. Caller says he is CBI officer, found drugs in parcel under my Aadhaar, and says I am under digital arrest..."
             className="w-full p-4 rounded-2xl border-2 border-slate-300 text-base font-medium focus:border-navy-900 focus:outline-none"
           />
-          <button
-            type="button"
-            onClick={handleAnalyzeManualText}
-            disabled={!manualTypedText.trim()}
-            className="min-h-[48px] px-6 py-2.5 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-400 text-white font-bold rounded-xl text-base transition-colors"
-          >
-            Analyze Typed Words
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleAnalyzeManualText}
+              disabled={!manualTypedText.trim() || isAnalyzing}
+              className="min-h-[48px] px-6 py-2.5 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-400 text-white font-bold rounded-xl text-base transition-colors"
+            >
+              {isAnalyzing ? 'Analyzing…' : 'Analyze'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

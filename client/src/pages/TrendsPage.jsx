@@ -44,8 +44,11 @@ export function TrendsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function loadTrends() {
       try {
         setLoading(true);
@@ -94,7 +97,7 @@ export function TrendsPage() {
 
       {/* 3 Large Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-slate-200 shadow-sm space-y-2">
+        <div className="bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
               Total Checks Completed
@@ -109,7 +112,7 @@ export function TrendsPage() {
           </p>
         </div>
 
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-red-200 shadow-sm space-y-2">
+        <div className="bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-red-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold uppercase tracking-wider text-red-700">
               Scams Intercepted
@@ -124,7 +127,7 @@ export function TrendsPage() {
           </p>
         </div>
 
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 shadow-sm space-y-2">
+        <div className="bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold uppercase tracking-wider text-emerald-800">
               Community Reports
@@ -141,13 +144,13 @@ export function TrendsPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200">
           <Loader message="Rendering scam analytics and charts..." />
         </div>
       ) : (
         <div className="space-y-10">
           {/* Recharts Bar Chart: Scam Types (Last 7 Days) */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="bg-white/95 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <div className="space-y-1">
               <h2 className="text-2xl font-black text-navy-950">
                 Top Scam Vectors in India (Last 7 Days)
@@ -190,7 +193,7 @@ export function TrendsPage() {
                   <Bar
                     dataKey="count"
                     radius={[8, 8, 0, 0]}
-                    animationDuration={1200}
+                    isAnimationActive={false}
                   >
                     {data.last_7_days.map((entry, index) => (
                       <Cell
@@ -205,7 +208,7 @@ export function TrendsPage() {
           </div>
 
           {/* Top Reported Identifiers (Masked) */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="bg-white/95 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-2xl font-black text-navy-950">

@@ -2,6 +2,17 @@ import { apiClient, isMockMode, delay } from './client.js';
 import { mockBackend } from './mocks.js';
 
 export const api = {
+  // Silent health check to wake up server on app load
+  health: {
+    check: async () => {
+      if (isMockMode) {
+        return { status: 'ok' };
+      }
+      const res = await apiClient.get('/api/health', { timeout: 30000 });
+      return res.data;
+    }
+  },
+
   // Auth endpoints
   auth: {
     signup: async (data) => {
@@ -45,7 +56,7 @@ export const api = {
   scans: {
     create: async ({ imageFile, text, language = 'en' }) => {
       if (isMockMode) {
-        await delay(350);
+        await delay(650);
         return mockBackend.createScan({ text, image: !!imageFile, language });
       }
       const formData = new FormData();
@@ -70,12 +81,15 @@ export const api = {
       return res.data;
     },
 
-    getById: async (id) => {
+    getById: async (id, options = {}) => {
       if (isMockMode) {
-        await delay();
+        await delay(150);
         return mockBackend.getScanById(id);
       }
-      const res = await apiClient.get(`/api/scans/${id}`);
+      const res = await apiClient.get(`/api/scans/${id}`, {
+        timeout: options.timeout || 20000,
+        signal: options.signal
+      });
       return res.data;
     },
 
@@ -88,59 +102,63 @@ export const api = {
       return res.data;
     },
 
-    explain: async (id, language) => {
+    explain: async (id, language, options = {}) => {
       if (isMockMode) {
         await delay(200);
         return mockBackend.explainScan(id, language);
       }
-      const res = await apiClient.post(`/api/scans/${id}/explain`, { language });
+      const res = await apiClient.post(
+        `/api/scans/${id}/explain`,
+        { language },
+        { signal: options.signal }
+      );
       return res.data;
     }
   },
 
   // Calls endpoints (Live Call Guard)
   calls: {
-    transcribeAudio: async ({ audioBlob, language = 'en' }) => {
+    transcribe: async ({ audioBlob, language = 'en', signal } = {}) => {
       if (isMockMode) {
-        await delay(200);
-        return mockBackend.transcribeAudio({ audioBlob, language });
+        await delay(120);
+        return { text: '', transcript: '' };
       }
+      const localeLanguage =
+        language === 'hi' || language === 'hi-IN'
+          ? 'hi-IN'
+          : language === 'kn' || language === 'kn-IN'
+          ? 'kn-IN'
+          : 'en-IN';
+
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'chunk.webm');
-      if (language) formData.append('language', language);
+      const ext = audioBlob?.type?.includes('mp4')
+        ? 'mp4'
+        : audioBlob?.type?.includes('ogg')
+        ? 'ogg'
+        : 'webm';
+      formData.append('audio', audioBlob, `chunk.${ext}`);
+      formData.append('language', localeLanguage);
 
       const res = await apiClient.post('/api/calls/transcribe', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'multipart/form-data'
         },
+        timeout: 15000,
+        signal
       });
       return res.data;
     },
 
-    analyzeAudio: async ({ audioFile, language = 'en', save = false }) => {
-      if (isMockMode) {
-        await delay(350);
-        return mockBackend.analyzeAudio({ audioFile, language, save });
-      }
-      const formData = new FormData();
-      formData.append('audio', audioFile, audioFile.name || 'recording.mp3');
-      if (language) formData.append('language', language);
-      if (save) formData.append('save', 'true');
-
-      const res = await apiClient.post('/api/calls/analyze-audio', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return res.data;
-    },
-
-    analyze: async ({ transcript, language = 'en' }) => {
+    analyze: async ({ transcript, language = 'en', signal } = {}) => {
       if (isMockMode) {
         await delay(150);
         return mockBackend.analyzeCall({ transcript, language });
       }
-      const res = await apiClient.post('/api/calls/analyze', { transcript, language });
+      const res = await apiClient.post(
+        '/api/calls/analyze',
+        { transcript, language },
+        { signal }
+      );
       return res.data;
     },
 

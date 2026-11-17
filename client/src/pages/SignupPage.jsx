@@ -46,12 +46,12 @@ export function SignupPage() {
       </div>
 
       {/* Language Picker */}
-      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-slate-200">
+      <div className="bg-white/95 p-4 rounded-2xl border border-slate-200">
         <LanguagePicker onChange={(l) => setSelectedLang(l)} />
       </div>
 
       {/* Signup Form */}
-      <div className="bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border-2 border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white/95 p-6 sm:p-8 rounded-3xl border-2 border-slate-200 shadow-sm space-y-6">
         <ErrorBox error={error} />
 
         <form onSubmit={handleSubmit} className="space-y-5">

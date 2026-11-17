@@ -23,12 +23,15 @@ import {
 export function LandingPage() {
   const { language, isAuthenticated } = useAuth();
   const [trends, setTrends] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   const [statsRef, statsInView] = useInView({ threshold: 0.2 });
   const [howRef, howInView] = useInView({ threshold: 0.2 });
   const [cardsRef, cardsInView] = useInView({ threshold: 0.15 });
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function loadTrends() {
       try {
         const data = await api.trends.get();
@@ -57,7 +60,7 @@ export function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Headline, CTAs & Trust Strip */}
           <div className="lg:col-span-7 text-center lg:text-left space-y-6 fade-up">
-            <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-slate-200 px-4 py-2 rounded-full text-navy-900 font-bold text-sm sm:text-base shadow-sm">
+            <div className="inline-flex items-center gap-2 bg-white/95 border border-slate-200 px-4 py-2 rounded-full text-navy-900 font-bold text-sm sm:text-base shadow-sm">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>India’s Family Safety Net Against Scams</span>
             </div>
@@ -82,7 +85,7 @@ export function LandingPage() {
 
               <Link
                 to="/scan"
-                className="min-h-[56px] px-7 py-4 bg-white/90 backdrop-blur-sm hover:bg-white text-navy-900 border-2 border-navy-900 rounded-2xl text-lg sm:text-xl font-bold transition-all flex items-center justify-center gap-2.5 shadow-sm"
+                className="min-h-[56px] px-7 py-4 bg-white/95 hover:bg-white text-navy-900 border-2 border-navy-900 rounded-2xl text-lg sm:text-xl font-bold transition-all flex items-center justify-center gap-2.5 shadow-sm"
               >
                 <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
                 <span>Check a Message Now</span>
@@ -91,7 +94,7 @@ export function LandingPage() {
 
             {/* Trust Strip */}
             <div className="pt-2">
-              <div className="inline-block bg-white/85 backdrop-blur-sm border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm">
+              <div className="inline-block bg-white/95 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm">
                 🇮🇳 Built for India · English, हिंदी, ಕನ್ನಡ · 🔒 Privacy-first · ⚡ Live AI
               </div>
             </div>
@@ -147,7 +150,7 @@ export function LandingPage() {
                   </div>
 
                   {/* ScamShield AI Verdict Slide-In Card */}
-                  <div className="phone-verdict-reveal bg-white/95 backdrop-blur-sm rounded-2xl p-3.5 border-2 border-red-500 shadow-md space-y-2.5">
+                  <div className="phone-verdict-reveal bg-white/95 rounded-2xl p-3.5 border-2 border-red-500 shadow-md space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-xs font-black tracking-wider uppercase shadow-sm">
                         <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
@@ -176,7 +179,7 @@ export function LandingPage() {
 
         {/* Live Public Stats Bar (Count up from 0 on scroll) */}
         <div ref={statsRef} className="pt-10 sm:pt-12">
-          <div className="bg-white/90 backdrop-blur-sm border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+          <div className="bg-white/95 border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
             <div className="space-y-1">
               <div className="text-3xl sm:text-4xl font-black text-navy-900 tabular-nums">
                 {trends ? totalScansCount.toLocaleString('en-IN') : '—'}
@@ -212,7 +215,7 @@ export function LandingPage() {
 
       {/* "How It Works" Row with Drawing Connecting Line */}
       <section ref={howRef} className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="bg-white/90 backdrop-blur-sm border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm space-y-8">
+        <div className="bg-white/95 border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm space-y-8">
           <div className="text-center space-y-2">
             <span className="text-xs font-black uppercase tracking-widest text-navy-700 bg-navy-50 px-3 py-1 rounded-full border border-navy-200">
               Simple 3-Step Protection
@@ -289,7 +292,7 @@ export function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {/* Feature 1: Check Message */}
-          <div className={`card-lift bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-slate-200 hover:border-navy-900 shadow-sm flex flex-col justify-between ${cardsInView ? 'fade-up stagger-1' : ''}`}>
+          <div className={`card-lift bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-slate-200 hover:border-navy-900 shadow-sm flex flex-col justify-between ${cardsInView ? 'fade-up stagger-1' : ''}`}>
             <div className="space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-navy-50 text-navy-900 flex items-center justify-center">
                 <ShieldCheck className="w-8 h-8" />
@@ -313,7 +316,7 @@ export function LandingPage() {
           </div>
 
           {/* Feature 2: Live Call Guard (Star) */}
-          <div className={`card-lift bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-red-300 hover:border-red-600 shadow-md relative flex flex-col justify-between overflow-hidden ${cardsInView ? 'fade-up stagger-2' : ''}`}>
+          <div className={`card-lift bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-red-300 hover:border-red-600 shadow-md relative flex flex-col justify-between overflow-hidden ${cardsInView ? 'fade-up stagger-2' : ''}`}>
             <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
               Star Feature
             </div>
@@ -340,7 +343,7 @@ export function LandingPage() {
           </div>
 
           {/* Feature 3: Check Before You Pay */}
-          <div className={`card-lift bg-white/90 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border-2 border-slate-200 hover:border-navy-900 shadow-sm flex flex-col justify-between ${cardsInView ? 'fade-up stagger-3' : ''}`}>
+          <div className={`card-lift bg-white/95 rounded-3xl p-6 sm:p-8 border-2 border-slate-200 hover:border-navy-900 shadow-sm flex flex-col justify-between ${cardsInView ? 'fade-up stagger-3' : ''}`}>
             <div className="space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
                 <Search className="w-8 h-8" />

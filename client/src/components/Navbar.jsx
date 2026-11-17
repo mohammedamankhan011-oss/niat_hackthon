@@ -48,7 +48,7 @@ export function Navbar() {
   const visibleLinks = navLinks.filter((item) => !item.authOnly || isAuthenticated);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-sm border-b border-slate-200/90 shadow-sm">
+    <header className="sticky top-0 z-40 w-full bg-white/95 border-b border-slate-200/90 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-2 h-16 sm:h-20 min-w-0">
           {/* Logo & Brand */}
@@ -171,7 +171,7 @@ export function Navbar() {
             : 'grid-rows-[0fr] opacity-0 pointer-events-none'
         }`}
       >
-        <div className="overflow-hidden bg-white/95 backdrop-blur-md shadow-xl">
+        <div className="overflow-hidden bg-white/95 shadow-xl">
           <div className="px-4 pt-4 pb-6 space-y-4 max-w-7xl mx-auto">
             <div>
               <LanguagePicker />

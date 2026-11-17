@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AlertTriangle, Quote } from 'lucide-react';
 
-export function RedFlagCard({ flag, evidence, explanation, index = 0 }) {
+export const RedFlagCard = memo(function RedFlagCard({ flag, evidence, explanation, index = 0 }) {
   const delayMs = Math.min(index * 80, 480);
 
   return (
     <div
       style={{ animationDelay: `${delayMs}ms` }}
-      className="fade-up card-lift bg-white/90 backdrop-blur-sm border-2 border-red-200 rounded-2xl p-5 shadow-sm"
+      className="fade-up card-lift bg-white/95 border-2 border-red-200 rounded-2xl p-5 shadow-sm"
     >
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0 font-bold text-sm">
@@ -40,4 +40,4 @@ export function RedFlagCard({ flag, evidence, explanation, index = 0 }) {
       </div>
     </div>
   );
-}
+});

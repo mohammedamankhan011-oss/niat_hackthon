@@ -96,6 +96,13 @@ apiClient.interceptors.response.use(
 export function extractErrorMessage(err) {
   if (!err) return 'An unexpected error occurred. Please try again.';
   if (typeof err === 'string') return err;
+  if (err.response?.status === 503) {
+    return (
+      err.response?.data?.error?.message ||
+      err.response?.data?.message ||
+      'Our AI security service is temporarily busy waking up. Please wait a few seconds and try again.'
+    );
+  }
   if (err.response?.data?.error?.message) {
     return err.response.data.error.message;
   }

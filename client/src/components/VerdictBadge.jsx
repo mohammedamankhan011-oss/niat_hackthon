@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { ShieldCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
 
-export function VerdictBadge({ riskLevel, score, size = 'default' }) {
+export const VerdictBadge = memo(function VerdictBadge({ riskLevel, score, size = 'default' }) {
   const normalized = (riskLevel || '').toLowerCase();
 
   let config = {
@@ -63,4 +63,4 @@ export function VerdictBadge({ riskLevel, score, size = 'default' }) {
       </div>
     </div>
   );
-}
+});

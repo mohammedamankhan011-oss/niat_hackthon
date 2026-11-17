@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/endpoints';
 import { VerdictBadge } from '../components/VerdictBadge';
@@ -22,9 +22,9 @@ import {
 export function HistoryPage() {
   const { language } = useAuth();
   const [scans, setScans] = useState([]);
-  const [filteredScans, setFilteredScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchedRef = useRef(false);
 
   // Filters
   const [verdictFilter, setVerdictFilter] = useState('all'); // all, scam, suspicious, safe
@@ -35,6 +35,8 @@ export function HistoryPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function loadScans() {
       try {
         setLoading(true);
@@ -42,7 +44,6 @@ export function HistoryPage() {
         const res = await api.scans.getAll();
         if (res?.scans) {
           setScans(res.scans);
-          setFilteredScans(res.scans);
         }
       } catch (err) {
         console.error('Failed to load history:', err);
@@ -55,19 +56,16 @@ export function HistoryPage() {
     loadScans();
   }, []);
 
-  // Filter effect
-  useEffect(() => {
-    let result = [...scans];
-
+  // Memoized filtered scans
+  const filteredScans = useMemo(() => {
+    let result = scans;
     if (verdictFilter !== 'all') {
       result = result.filter(s => s.risk_level === verdictFilter);
     }
-
     if (typeFilter !== 'all') {
       result = result.filter(s => s.input_type === typeFilter);
     }
-
-    setFilteredScans(result);
+    return result;
   }, [verdictFilter, typeFilter, scans]);
 
   const confirmDelete = async () => {
@@ -116,7 +114,7 @@ export function HistoryPage() {
       <ErrorBox error={error} />
 
       {/* Filter Controls Bar */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div className="bg-white/95 rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
           <Filter className="w-4 h-4 text-navy-900" />
           <span>Filter records by verdict & input type:</span>
@@ -175,11 +173,11 @@ export function HistoryPage() {
 
       {/* History Items List */}
       {loading ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading safety records..." />
         </div>
       ) : filteredScans.length === 0 ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200 text-center space-y-4">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200 text-center space-y-4">
           <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
           <h3 className="text-xl font-bold text-slate-800">No records found</h3>
           <p className="text-slate-600 max-w-sm mx-auto">
@@ -199,7 +197,7 @@ export function HistoryPage() {
           {filteredScans.map((item) => (
             <div
               key={item.id}
-              className="bg-white/90 backdrop-blur-sm border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+              className="bg-white/95 border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
             >
               <Link
                 to={`/scans/${item.id}`}
@@ -269,7 +267,7 @@ export function HistoryPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/75"
         >
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 border-2 border-slate-200 shadow-2xl">
             <div className="flex items-center gap-3 text-red-600">

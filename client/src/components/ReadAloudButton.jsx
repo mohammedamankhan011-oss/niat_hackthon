@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Volume2, Square, Info } from 'lucide-react';
 import { useSpeech } from '../hooks/useSpeech';
 
-export function ReadAloudButton({ text, language = 'en', className = "" }) {
+export function ReadAloudButton({ text, language = 'en', className = '' }) {
   const { speak, stop, isSpeaking, fallbackNote } = useSpeech();
+
+  // Automatically stop speech whenever selected language changes
+  useEffect(() => {
+    stop();
+  }, [language, stop]);
 
   const handleToggle = () => {
     if (isSpeaking) {
@@ -18,10 +23,10 @@ export function ReadAloudButton({ text, language = 'en', className = "" }) {
       <button
         type="button"
         onClick={handleToggle}
-        aria-label={isSpeaking ? "Stop reading explanation aloud" : "Read explanation aloud"}
+        aria-label={isSpeaking ? 'Stop reading explanation aloud' : 'Read explanation aloud'}
         className={`min-h-[48px] px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm focus:ring-2 focus:ring-navy-900 ${
           isSpeaking
-            ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+            ? 'bg-red-600 hover:bg-red-700 text-white'
             : 'bg-navy-900 hover:bg-navy-800 text-white'
         }`}
       >

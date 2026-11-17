@@ -22,6 +22,7 @@ export function AlertsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   const fetchAlerts = async () => {
     try {
@@ -41,6 +42,8 @@ export function AlertsPage() {
   };
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchAlerts();
   }, []);
 
@@ -87,11 +90,11 @@ export function AlertsPage() {
       <ErrorBox error={error} />
 
       {loading ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading family safety alerts..." />
         </div>
       ) : alerts.length === 0 ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200 text-center space-y-4">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200 text-center space-y-4">
           <CheckCircle className="w-14 h-14 text-emerald-500 mx-auto" />
           <h3 className="text-2xl font-black text-slate-900">
             All Clear! No Active Alerts
@@ -107,8 +110,8 @@ export function AlertsPage() {
               key={alert.id}
               className={`rounded-2xl p-6 border-2 transition-all shadow-sm ${
                 alert.is_read
-                  ? 'bg-white/90 backdrop-blur-sm border-slate-200 opacity-85'
-                  : 'bg-red-50/90 backdrop-blur-sm border-red-300 shadow-md ring-1 ring-red-200'
+                  ? 'bg-white/95 border-slate-200 opacity-85'
+                  : 'bg-red-50/95 border-red-300 shadow-md ring-1 ring-red-200'
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

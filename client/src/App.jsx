@@ -1,26 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Loader } from './components/Loader';
 import TruchetFlowBackground from './components/TruchetFlowBackground';
 import { subscribeSlowRequest } from './api/client';
-
-// Pages
-import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { SignupPage } from './pages/SignupPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { ScanPage } from './pages/ScanPage';
-import { ScanResultPage } from './pages/ScanResultPage';
-import { LiveCallGuardPage } from './pages/LiveCallGuardPage';
-import { CheckPayPage } from './pages/CheckPayPage';
-import { HistoryPage } from './pages/HistoryPage';
-import { FamilyPage } from './pages/FamilyPage';
-import { AlertsPage } from './pages/AlertsPage';
-import { TrendsPage } from './pages/TrendsPage';
+import { api } from './api/endpoints';
 import { ShieldLogo } from './components/ShieldLogo';
 import { PhoneCall, ExternalLink, ShieldCheck, Clock } from 'lucide-react';
+
+// Lazy-loaded pages (Recharts only loads when visiting /trends)
+const LandingPage = lazy(() =>
+  import('./pages/LandingPage').then((m) => ({ default: m.LandingPage }))
+);
+const LoginPage = lazy(() =>
+  import('./pages/LoginPage').then((m) => ({ default: m.LoginPage }))
+);
+const SignupPage = lazy(() =>
+  import('./pages/SignupPage').then((m) => ({ default: m.SignupPage }))
+);
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage }))
+);
+const ScanPage = lazy(() =>
+  import('./pages/ScanPage').then((m) => ({ default: m.ScanPage }))
+);
+const ScanResultPage = lazy(() =>
+  import('./pages/ScanResultPage').then((m) => ({ default: m.ScanResultPage }))
+);
+const LiveCallGuardPage = lazy(() =>
+  import('./pages/LiveCallGuardPage').then((m) => ({ default: m.LiveCallGuardPage }))
+);
+const CheckPayPage = lazy(() =>
+  import('./pages/CheckPayPage').then((m) => ({ default: m.CheckPayPage }))
+);
+const HistoryPage = lazy(() =>
+  import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage }))
+);
+const FamilyPage = lazy(() =>
+  import('./pages/FamilyPage').then((m) => ({ default: m.FamilyPage }))
+);
+const AlertsPage = lazy(() =>
+  import('./pages/AlertsPage').then((m) => ({ default: m.AlertsPage }))
+);
+const TrendsPage = lazy(() =>
+  import('./pages/TrendsPage').then((m) => ({ default: m.TrendsPage }))
+);
 
 function getTitleForPath(pathname) {
   if (pathname === '/') return 'ScamShield — Check before you click, pay or panic';
@@ -28,7 +54,9 @@ function getTitleForPath(pathname) {
   if (pathname === '/signup') return 'Sign Up · ScamShield';
   if (pathname === '/dashboard') return 'Dashboard · ScamShield';
   if (pathname === '/scan') return 'Check a Message · ScamShield';
-  if (pathname.startsWith('/scans/')) return 'Scan Result · ScamShield';
+  if (pathname.startsWith('/scans/') || pathname.startsWith('/scan/')) {
+    return 'Scan Result · ScamShield';
+  }
   if (pathname === '/call') return 'Live Call Guard · ScamShield';
   if (pathname === '/check') return 'Check Before You Pay · ScamShield';
   if (pathname === '/trends') return 'Scam Trends · ScamShield';
@@ -41,6 +69,14 @@ function getTitleForPath(pathname) {
 export function App() {
   const location = useLocation();
   const [slowServerBanner, setSlowServerBanner] = useState(false);
+  const healthPingedRef = useRef(false);
+
+  // E: Fire GET /api/health once silently on app load to wake up server
+  useEffect(() => {
+    if (healthPingedRef.current) return;
+    healthPingedRef.current = true;
+    api.health.check().catch(() => {});
+  }, []);
 
   // Dynamic route page title & scroll to top on navigation
   useEffect(() => {
@@ -72,73 +108,84 @@ export function App() {
         <div
           role="status"
           aria-live="polite"
-          className="bg-amber-50/95 backdrop-blur-sm border-b border-amber-300 px-4 py-2.5 text-center text-sm font-bold text-amber-950 flex items-center justify-center gap-2 fade-up"
+          className="bg-amber-50 border-b border-amber-300 px-4 py-2.5 text-center text-sm font-bold text-amber-950 flex items-center justify-center gap-2 fade-up"
         >
           <Clock className="w-4 h-4 text-amber-700 shrink-0" />
           <span>Waking up our secure server… this can take up to 30 seconds the first time.</span>
         </div>
       )}
 
-      {/* Main Content Area with 200ms route fade */}
+      {/* Main Content Area with Suspense skeleton fallback */}
       <main className="flex-1 pb-24 md:pb-16 bg-transparent">
-        <div key={location.pathname} className="page-fade">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+        <Suspense
+          fallback={
+            <div className="max-w-4xl mx-auto py-12 px-4">
+              <div className="bg-white/95 rounded-3xl p-8 border border-slate-200 shadow-sm">
+                <Loader message="Loading ScamShield..." />
+              </div>
+            </div>
+          }
+        >
+          <div key={location.pathname} className="page-fade">
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
 
-            {/* Core Feature Pages */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/scan" element={<ScanPage />} />
-            <Route path="/scans/:id" element={<ScanResultPage />} />
-            <Route
-              path="/call"
-              element={
-                <ProtectedRoute>
-                  <LiveCallGuardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/check" element={<CheckPayPage />} />
-            <Route path="/trends" element={<TrendsPage />} />
+              {/* Core Feature Pages */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/scan" element={<ScanPage />} />
+              <Route path="/scans/:id" element={<ScanResultPage />} />
+              <Route path="/scan/:id" element={<ScanResultPage />} />
+              <Route
+                path="/call"
+                element={
+                  <ProtectedRoute>
+                    <LiveCallGuardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/check" element={<CheckPayPage />} />
+              <Route path="/trends" element={<TrendsPage />} />
 
-            {/* Protected Family & History Pages */}
-            <Route
-              path="/history"
-              element={
-                <ProtectedRoute>
-                  <HistoryPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/family"
-              element={
-                <ProtectedRoute>
-                  <FamilyPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/alerts"
-              element={
-                <ProtectedRoute>
-                  <AlertsPage />
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected Family & History Pages */}
+              <Route
+                path="/history"
+                element={
+                  <ProtectedRoute>
+                    <HistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/family"
+                element={
+                  <ProtectedRoute>
+                    <FamilyPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/alerts"
+                element={
+                  <ProtectedRoute>
+                    <AlertsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Catch-all fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
+              {/* Catch-all fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </Suspense>
       </main>
 
       {/* Official Emergency Banner & Trust Footer */}

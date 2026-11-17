@@ -27,8 +27,11 @@ export function DashboardPage() {
   const [unreadAlerts, setUnreadAlerts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function loadDashboardData() {
       try {
         setLoading(true);
@@ -81,7 +84,7 @@ export function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
       {/* Top Greeting & Alerts Bar */}
-      <div className="fade-up flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/90 backdrop-blur-sm p-6 sm:p-8 rounded-3xl border-2 border-slate-200 shadow-sm">
+      <div className="fade-up flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 p-6 sm:p-8 rounded-3xl border-2 border-slate-200 shadow-sm">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 inline-flex items-center gap-1.5">
@@ -127,7 +130,7 @@ export function DashboardPage() {
           {/* Button 1: Check a message */}
           <Link
             to="/scan"
-            className="fade-up stagger-1 card-lift group min-h-[140px] p-6 sm:p-8 bg-white/90 backdrop-blur-sm hover:bg-navy-900 text-slate-900 hover:text-white rounded-3xl border-3 border-navy-900 shadow-md flex flex-col justify-between"
+            className="fade-up stagger-1 card-lift group min-h-[140px] p-6 sm:p-8 bg-white/95 hover:bg-navy-900 text-slate-900 hover:text-white rounded-3xl border-3 border-navy-900 shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-14 h-14 rounded-2xl bg-navy-50 text-navy-900 group-hover:bg-white/20 group-hover:text-white flex items-center justify-center transition-colors">
@@ -171,7 +174,7 @@ export function DashboardPage() {
           {/* Button 3: Check before you pay */}
           <Link
             to="/check"
-            className="fade-up stagger-3 card-lift group min-h-[140px] p-6 sm:p-8 bg-white/90 backdrop-blur-sm hover:bg-navy-900 text-slate-900 hover:text-white rounded-3xl border-3 border-navy-900 shadow-md flex flex-col justify-between"
+            className="fade-up stagger-3 card-lift group min-h-[140px] p-6 sm:p-8 bg-white/95 hover:bg-navy-900 text-slate-900 hover:text-white rounded-3xl border-3 border-navy-900 shadow-md flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-800 group-hover:bg-white/20 group-hover:text-white flex items-center justify-center transition-colors">
@@ -211,11 +214,11 @@ export function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
+          <div className="bg-white/95 rounded-3xl p-12 border border-slate-200">
             <Loader message="Loading your recent safety checks..." />
           </div>
         ) : scans.length === 0 ? (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-10 border border-slate-200 text-center space-y-4">
+          <div className="bg-white/95 rounded-3xl p-10 border border-slate-200 text-center space-y-4">
             <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
             <p className="text-lg font-bold text-slate-700">
               {t('noRecentScans', language)}
@@ -233,7 +236,7 @@ export function DashboardPage() {
               <Link
                 key={scan.id}
                 to={`/scans/${scan.id}`}
-                className="block bg-white/90 backdrop-blur-sm hover:bg-white border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm group"
+                className="block bg-white/95 hover:bg-white border-2 border-slate-200 hover:border-navy-900 rounded-2xl p-5 transition-all shadow-sm group"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">

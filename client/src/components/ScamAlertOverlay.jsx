@@ -31,7 +31,7 @@ export function ScamAlertOverlay({
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="scam-alert-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-red-950/90 backdrop-blur-md fade-up"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-red-950/95 fade-up"
     >
       <div className="animate-alert-entry w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-4 border-red-600 overflow-hidden text-center flex flex-col max-h-[90vh]">
         {/* Urgent Red Banner */}

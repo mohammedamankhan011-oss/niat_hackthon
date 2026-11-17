@@ -13,10 +13,25 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scamAlertActive, setScamAlertActive] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState(null);
+  const [analysisNotice, setAnalysisNotice] = useState(null);
 
-  const lastAnalyzedTranscriptRef = useRef('');
+  const isMountedRef = useRef(true);
+  const lastAnalyzedLengthRef = useRef(0);
   const isAnalyzingRef = useRef(false);
+  const abortControllerRef = useRef(null);
   const transcriptRef = useRef(transcript);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (_) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     transcriptRef.current = transcript;
@@ -24,59 +39,81 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
 
   const hasWords = Boolean(transcript && transcript.trim().length > 0);
 
-  const performAnalysis = useCallback(async (currentText) => {
-    if (!currentText || currentText.trim().length === 0) return;
-    if (isAnalyzingRef.current) return;
+  const performAnalysis = useCallback(
+    async (currentText, { force = false } = {}) => {
+      const cleaned = (currentText || '').trim();
+      if (!cleaned) return;
 
-    // Only re-analyze if new words have been added
-    if (currentText.trim() === lastAnalyzedTranscriptRef.current.trim()) {
-      return;
-    }
+      // Never send two analyze requests at once
+      if (isAnalyzingRef.current) return;
 
-    try {
-      isAnalyzingRef.current = true;
-      setIsAnalyzing(true);
+      // Only analyze if transcript grew (unless forced by manual button or demo end)
+      if (!force && cleaned.length <= lastAnalyzedLengthRef.current) {
+        return;
+      }
 
-      // Last 4000 characters as per spec
-      const slicedTranscript = currentText.slice(-4000);
-      const res = await api.calls.analyze({
-        transcript: slicedTranscript,
-        language
-      });
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
-      lastAnalyzedTranscriptRef.current = currentText;
-      setLastCheckTime(new Date());
+      try {
+        isAnalyzingRef.current = true;
+        if (isMountedRef.current) {
+          setIsAnalyzing(true);
+        }
 
-      if (res?.analysis) {
-        setAnalysis(res.analysis);
+        const slicedTranscript = cleaned.slice(-4000);
+        const res = await api.calls.analyze({
+          transcript: slicedTranscript,
+          language,
+          signal: controller.signal
+        });
 
-        // If risk level becomes "scam"
-        if (res.analysis.risk_level === 'scam') {
-          setScamAlertActive(true);
+        if (!isMountedRef.current || controller.signal.aborted) return;
 
-          // Vibrate phone if supported
-          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-            try {
-              navigator.vibrate([400, 200, 400, 200, 800]);
-            } catch (e) {
-              // Ignore vibration failure
+        lastAnalyzedLengthRef.current = cleaned.length;
+        setLastCheckTime(new Date());
+        setAnalysisNotice(null);
+
+        if (res?.analysis) {
+          setAnalysis({
+            ...res.analysis,
+            source: res.analysis.source || res.source
+          });
+
+          if (res.analysis.risk_level === 'scam') {
+            setScamAlertActive(true);
+
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              try {
+                navigator.vibrate([400, 200, 400, 200, 800]);
+              } catch (_) {}
+            }
+
+            if (onScamTrigger) {
+              onScamTrigger(res.analysis);
             }
           }
-
-          if (onScamTrigger) {
-            onScamTrigger(res.analysis);
+        }
+      } catch (err) {
+        if (err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
+          if (isMountedRef.current && err?.response?.status === 503) {
+            setAnalysisNotice(
+              'AI analysis service is temporarily busy (503) — keeping Live Call Guard active and retrying automatically.'
+            );
           }
+          console.warn('Live call analysis failed:', err);
+        }
+      } finally {
+        isAnalyzingRef.current = false;
+        if (isMountedRef.current) {
+          setIsAnalyzing(false);
         }
       }
-    } catch (err) {
-      console.warn('Live call analysis failed:', err);
-    } finally {
-      setIsAnalyzing(false);
-      isAnalyzingRef.current = false;
-    }
-  }, [language, onScamTrigger]);
+    },
+    [language, onScamTrigger]
+  );
 
-  // Run the first AI analysis 5 seconds after words start, then every 15 seconds after that
+  // First call to /api/calls/analyze after 10s of transcript, then every 15s, only if transcript grew
   useEffect(() => {
     if (!enabled || !hasWords) return;
 
@@ -94,7 +131,7 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
           performAnalysis(nextText);
         }
       }, 15000);
-    }, 5000);
+    }, 10000);
 
     return () => {
       clearTimeout(firstTimeout);
@@ -105,20 +142,42 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
   }, [enabled, hasWords, performAnalysis]);
 
   const dismissAlert = useCallback(() => {
-    setScamAlertActive(false);
+    if (isMountedRef.current) {
+      setScamAlertActive(false);
+    }
+  }, []);
+
+  const updateAnalysisState = useCallback((partial) => {
+    if (!isMountedRef.current) return;
+    setAnalysis((prev) => {
+      const next = { ...prev, ...partial };
+      if (next.risk_level === 'scam') {
+        setScamAlertActive(true);
+      }
+      return next;
+    });
   }, []);
 
   const resetAnalysis = useCallback(() => {
-    lastAnalyzedTranscriptRef.current = '';
-    setScamAlertActive(false);
-    setAnalysis({
-      risk_level: 'safe',
-      risk_score: 0,
-      scam_type: 'none',
-      triggers: [],
-      advice: 'Put the call on speaker. Analysis will activate as words are spoken.',
-      say_this: ''
-    });
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch (_) {}
+    }
+    isAnalyzingRef.current = false;
+    lastAnalyzedLengthRef.current = 0;
+    if (isMountedRef.current) {
+      setIsAnalyzing(false);
+      setScamAlertActive(false);
+      setAnalysis({
+        risk_level: 'safe',
+        risk_score: 0,
+        scam_type: 'none',
+        triggers: [],
+        advice: 'Put the call on speaker. Analysis will activate as words are spoken.',
+        say_this: ''
+      });
+    }
   }, []);
 
   return {
@@ -126,7 +185,9 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
     isAnalyzing,
     scamAlertActive,
     lastCheckTime,
+    analysisNotice,
     performAnalysis,
+    updateAnalysisState,
     dismissAlert,
     resetAnalysis
   };

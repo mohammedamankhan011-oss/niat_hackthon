@@ -59,7 +59,7 @@
   }
 }
 
-/* Global Truchet Flow Background */
+/* Global Truchet Flow Background (static pattern on >= 768px, light gradient on mobile) */
 .bg-truchet-flow-root {
   position: fixed;
   inset: 0;
@@ -69,6 +69,16 @@
 }
 .bg-truchet-flow-root canvas {
   display: block;
+}
+
+@media (max-width: 767px) {
+  html {
+    background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+    background-attachment: fixed;
+  }
+  .bg-truchet-flow-root {
+    display: none !important;
+  }
 }
 
 /* Quick 200ms route page fade */
@@ -286,7 +296,8 @@
     animation: none !important;
   }
 
-  .phone-scan-beam {
+  .phone-scan-beam,
+  .bg-truchet-flow-root canvas {
     display: none !important;
   }
 }

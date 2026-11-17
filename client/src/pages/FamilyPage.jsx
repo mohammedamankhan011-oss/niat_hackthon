@@ -25,6 +25,7 @@ export function FamilyPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   const loadGuardians = async () => {
     try {
@@ -47,6 +48,8 @@ export function FamilyPage() {
   };
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     loadGuardians();
   }, []);
 
@@ -109,7 +112,7 @@ export function FamilyPage() {
       <ErrorBox error={error} />
 
       {/* Invite a Guardian Form */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+      <div className="bg-white/95 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-navy-50 text-navy-900 flex items-center justify-center">
             <UserPlus className="w-6 h-6" />
@@ -154,7 +157,7 @@ export function FamilyPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-12 border border-slate-200">
+        <div className="bg-white/95 rounded-3xl p-12 border border-slate-200">
           <Loader message="Loading your family circle..." />
         </div>
       ) : (
@@ -190,7 +193,7 @@ export function FamilyPage() {
                     <button
                       type="button"
                       onClick={() => handleAcceptInvite(item.id)}
-                      className="min-h-[44px] px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-colors shadow"
+                      className="min-h-[48px] px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-colors shadow"
                     >
                       Accept & Protect Them
                     </button>
@@ -201,7 +204,7 @@ export function FamilyPage() {
           )}
 
           {/* Section: People I Protect */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="bg-white/95 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-6 h-6 text-emerald-600" />
@@ -255,7 +258,7 @@ export function FamilyPage() {
           </div>
 
           {/* Section: My Guardians */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="bg-white/95 rounded-3xl border-2 border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Users className="w-6 h-6 text-navy-900" />

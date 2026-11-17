@@ -110,7 +110,7 @@ export function CheckPayPage() {
       <ErrorBox error={error} />
 
       {/* Main Big Search Input Form */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-3 border-navy-900 shadow-lg p-6 sm:p-8 space-y-4">
+      <div className="bg-white/95 rounded-3xl border-3 border-navy-900 shadow-lg p-6 sm:p-8 space-y-4">
         <form onSubmit={handleSearch} className="space-y-4">
           <label
             htmlFor="lookup-input"
@@ -180,7 +180,7 @@ export function CheckPayPage() {
       </div>
 
       {loading && (
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-10 border border-slate-200 text-center">
+        <div className="bg-white/95 rounded-3xl p-10 border border-slate-200 text-center">
           <Loader message="Checking national community database..." />
         </div>
       )}
@@ -316,7 +316,7 @@ export function CheckPayPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/75"
         >
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 border-2 border-slate-200 shadow-2xl">
             <h3 className="text-2xl font-black text-navy-950">

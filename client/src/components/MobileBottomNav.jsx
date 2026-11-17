@@ -51,7 +51,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Mobile quick navigation"
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_-4px_rgba(15,30,54,0.1)] pb-[env(safe-area-inset-bottom)]"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 border-t border-slate-200 shadow-[0_-4px_20px_-4px_rgba(15,30,54,0.1)] pb-[env(safe-area-inset-bottom)]"
     >
       <div className="grid grid-cols-5 items-stretch px-1 py-1">
         {items.map((item) => {

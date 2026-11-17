@@ -1,17 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { compressImage } from '../utils/compressImage';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { ErrorBox } from '../components/ErrorBox';
-import { Loader } from '../components/Loader';
+import { t } from '../utils/translations';
 import {
   Upload,
   FileText,
   Image as ImageIcon,
   CheckCircle2,
-  AlertTriangle,
   X,
   Sparkles,
   ArrowRight,
@@ -39,6 +38,12 @@ const SAMPLE_MESSAGES = {
   }
 };
 
+const SCAN_STEPS = [
+  'Reading message…',
+  'Checking patterns…',
+  'Preparing result…'
+];
+
 export function ScanPage() {
   const { language } = useAuth();
   const navigate = useNavigate();
@@ -50,9 +55,40 @@ export function ScanPage() {
   const [compressionInfo, setCompressionInfo] = useState('');
   const [selectedLang, setSelectedLang] = useState(language || 'en');
   const [loading, setLoading] = useState(false);
+  const [scanStepIndex, setScanStepIndex] = useState(0);
   const [error, setError] = useState(null);
 
   const fileInputRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    setSelectedLang(language || 'en');
+  }, [language]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Step progress indicator while scanning
+  useEffect(() => {
+    if (!loading) {
+      setScanStepIndex(0);
+      return;
+    }
+    const t1 = setTimeout(() => {
+      if (isMountedRef.current) setScanStepIndex(1);
+    }, 350);
+    const t2 = setTimeout(() => {
+      if (isMountedRef.current) setScanStepIndex(2);
+    }, 750);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [loading]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -71,16 +107,23 @@ export function ScanPage() {
       const compressed = await compressImage(file, 1600, 1600, 0.8);
       const compressedSize = (compressed.size / 1024).toFixed(0);
 
+      if (!isMountedRef.current) return;
       setSelectedFile(compressed);
       setCompressionInfo(`Compressed from ${originalSize} KB to ${compressedSize} KB (max 1600px JPEG)`);
 
       const reader = new FileReader();
-      reader.onload = (event) => setImagePreview(event.target.result);
+      reader.onload = (event) => {
+        if (isMountedRef.current) {
+          setImagePreview(event.target.result);
+        }
+      };
       reader.readAsDataURL(compressed);
     } catch (err) {
       console.error('Image compression failed:', err);
-      setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      if (isMountedRef.current) {
+        setSelectedFile(file);
+        setImagePreview(URL.createObjectURL(file));
+      }
     }
   };
 
@@ -102,6 +145,8 @@ export function ScanPage() {
 
   const handleScanSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     if (activeTab === 'text' && !messageText.trim()) {
       setError('Please paste the suspicious message or pick a sample.');
       return;
@@ -121,44 +166,39 @@ export function ScanPage() {
         language: selectedLang
       });
 
+      if (!isMountedRef.current) return;
+
       if (res?.scan?.id) {
-        navigate(`/scans/${res.scan.id}`);
+        // Navigate to /scans/:id passing the full result in router state for instant render
+        navigate(`/scans/${res.scan.id}`, { state: { scan: res.scan } });
       } else {
         throw new Error('Could not process the scan. Please try again.');
       }
     } catch (err) {
       console.error('Scan failed:', err);
-      setError(err);
-      setLoading(false);
+      if (isMountedRef.current) {
+        setError(err);
+        setLoading(false);
+      }
     }
   };
-
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto py-16 px-4">
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-10 border border-slate-200 shadow-sm text-center">
-          <Loader message="Analyzing message for cyber threats & fraud signatures..." />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-8">
       {/* Title */}
       <div className="space-y-2 text-center sm:text-left">
         <h1 className="text-3xl sm:text-4xl font-black text-navy-950">
-          Check a Suspicious Message
+          {t('checkMessage', language)}
         </h1>
         <p className="text-lg text-slate-700 font-medium">
-          Check SMS, WhatsApp messages, Telegram tasks, or payment requests before you tap any links.
+          {t('checkMessageDesc', language)}
         </p>
       </div>
 
       <ErrorBox error={error} />
 
       {/* Language Picker */}
-      <div className="bg-white/90 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="bg-white/95 p-5 rounded-2xl border border-slate-200 shadow-sm">
         <LanguagePicker onChange={(l) => setSelectedLang(l)} />
       </div>
 
@@ -166,11 +206,12 @@ export function ScanPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
           <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Try a sample to see how ScamShield works:</span>
+          <span>{t('trySample', language)}</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             type="button"
+            disabled={loading}
             onClick={() => handleLoadSample('sbi_kyc')}
             className="min-h-[48px] p-3 text-left rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-colors focus:ring-2 focus:ring-red-500"
           >
@@ -178,12 +219,13 @@ export function ScanPage() {
               {SAMPLE_MESSAGES.sbi_kyc.tag}
             </div>
             <div className="text-sm font-black text-red-950">
-              {SAMPLE_MESSAGES.sbi_kyc.title}
+              {t('sampleSbi', language)}
             </div>
           </button>
 
           <button
             type="button"
+            disabled={loading}
             onClick={() => handleLoadSample('part_time_job')}
             className="min-h-[48px] p-3 text-left rounded-xl border-2 border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors focus:ring-2 focus:ring-purple-500"
           >
@@ -191,12 +233,13 @@ export function ScanPage() {
               {SAMPLE_MESSAGES.part_time_job.tag}
             </div>
             <div className="text-sm font-black text-purple-950">
-              {SAMPLE_MESSAGES.part_time_job.title}
+              {t('sampleJob', language)}
             </div>
           </button>
 
           <button
             type="button"
+            disabled={loading}
             onClick={() => handleLoadSample('safe_message')}
             className="min-h-[48px] p-3 text-left rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors focus:ring-2 focus:ring-emerald-500"
           >
@@ -204,17 +247,18 @@ export function ScanPage() {
               {SAMPLE_MESSAGES.safe_message.tag}
             </div>
             <div className="text-sm font-black text-emerald-950">
-              {SAMPLE_MESSAGES.safe_message.title}
+              {t('sampleSafe', language)}
             </div>
           </button>
         </div>
       </div>
 
       {/* Input Tabs: Paste Text / Upload Screenshot */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white/95 rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden">
         <div className="grid grid-cols-2 border-b border-slate-200">
           <button
             type="button"
+            disabled={loading}
             onClick={() => setActiveTab('text')}
             className={`min-h-[56px] py-3.5 px-4 font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${
               activeTab === 'text'
@@ -228,6 +272,7 @@ export function ScanPage() {
 
           <button
             type="button"
+            disabled={loading}
             onClick={() => setActiveTab('image')}
             className={`min-h-[56px] py-3.5 px-4 font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${
               activeTab === 'image'
@@ -252,18 +297,19 @@ export function ScanPage() {
               <textarea
                 id="message-text-input"
                 rows={6}
+                disabled={loading}
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 placeholder="Paste the suspicious SMS, WhatsApp message, or email here..."
-                className="w-full p-4 rounded-2xl border-2 border-slate-300 text-base sm:text-lg font-medium leading-relaxed focus:border-navy-900 focus:outline-none"
+                className="w-full p-4 rounded-2xl border-2 border-slate-300 text-base sm:text-lg font-medium leading-relaxed focus:border-navy-900 focus:outline-none disabled:bg-slate-100"
               />
               <div className="flex justify-between items-center text-xs text-slate-500 font-semibold">
                 <span>Supports English, Hindi, Hinglish, Kannada & all Indian languages</span>
-                {messageText && (
+                {messageText && !loading && (
                   <button
                     type="button"
                     onClick={() => setMessageText('')}
-                    className="text-red-600 hover:underline"
+                    className="min-h-[48px] px-2 text-red-600 hover:underline"
                   >
                     Clear text
                   </button>
@@ -306,14 +352,16 @@ export function ScanPage() {
                       alt="Uploaded screenshot preview"
                       className="max-h-96 w-auto object-contain"
                     />
-                    <button
-                      type="button"
-                      onClick={handleClearImage}
-                      aria-label="Remove image"
-                      className="absolute top-3 right-3 min-w-[44px] min-h-[44px] bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
+                    {!loading && (
+                      <button
+                        type="button"
+                        onClick={handleClearImage}
+                        aria-label="Remove image"
+                        className="absolute top-3 right-3 min-w-[48px] min-h-[48px] bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    )}
                   </div>
                   {compressionInfo && (
                     <div className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-2">
@@ -326,14 +374,49 @@ export function ScanPage() {
             </div>
           )}
 
-          {/* Submit Action */}
+          {/* Step Progress Indicator While Scanning */}
+          {loading && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="bg-slate-50 border-2 border-navy-200 rounded-2xl p-5 space-y-3 fade-up"
+            >
+              <div className="flex items-center justify-between text-sm font-black text-navy-950">
+                <span>{SCAN_STEPS[scanStepIndex]}</span>
+                <span className="text-xs font-bold text-slate-500">
+                  Step {scanStepIndex + 1} of {SCAN_STEPS.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {SCAN_STEPS.map((label, idx) => (
+                  <div key={label} className="space-y-1">
+                    <div
+                      className={`h-2 rounded-full transition-colors duration-300 ${
+                        idx <= scanStepIndex ? 'bg-navy-900' : 'bg-slate-200'
+                      }`}
+                    />
+                    <div
+                      className={`text-xs font-bold ${
+                        idx <= scanStepIndex ? 'text-navy-900' : 'text-slate-400'
+                      }`}
+                    >
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submit Action (disabled while loading to prevent double submit) */}
           <button
             type="submit"
-            className="w-full min-h-[56px] py-4 px-8 bg-navy-900 hover:bg-navy-800 text-white rounded-2xl text-xl font-black shadow-lg transition-all flex items-center justify-center gap-3 focus:ring-4 focus:ring-navy-300"
+            disabled={loading}
+            className="w-full min-h-[56px] py-4 px-8 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-400 text-white rounded-2xl text-xl font-black shadow-lg transition-all flex items-center justify-center gap-3 focus:ring-4 focus:ring-navy-300"
           >
-            <ShieldAlert className="w-6 h-6 text-red-500" />
-            <span>Check Now</span>
-            <ArrowRight className="w-6 h-6" />
+            <ShieldAlert className="w-6 h-6 text-red-500 shrink-0" />
+            <span>{loading ? SCAN_STEPS[scanStepIndex] : 'Check Now'}</span>
+            {!loading && <ArrowRight className="w-6 h-6 shrink-0" />}
           </button>
         </form>
       </div>

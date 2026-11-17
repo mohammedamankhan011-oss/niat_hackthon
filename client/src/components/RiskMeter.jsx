@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { useCountUp } from '../hooks/useCountUp';
 
-export function RiskMeter({ score = 0, riskLevel = 'safe', size = 220 }) {
+export const RiskMeter = memo(function RiskMeter({ score = 0, riskLevel = 'safe', size = 220 }) {
   const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
   const animatedNumber = useCountUp(normalizedScore, 900, true);
   const [animatedArcScore, setAnimatedArcScore] = useState(0);
@@ -104,4 +104,4 @@ export function RiskMeter({ score = 0, riskLevel = 'safe', size = 220 }) {
       </div>
     </div>
   );
-}
+});
