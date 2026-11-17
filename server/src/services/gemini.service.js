@@ -20,7 +20,7 @@ import {
 import { AppError } from '../utils/AppError.js';
 import { cacheKey, getCached, setCached } from '../utils/aiCache.js';
 import { localized } from '../utils/localizedText.js';
-import { analyzeLiveCallWithRules, analyzeWithRules } from '../utils/ruleEngine.js';
+import { analyzeLiveCallWithRules, analyzeWithRules, applyAnalysisFloor, applyLiveCallFloor } from '../utils/ruleEngine.js';
 
 const LIMITS = {
   flag: 120,
@@ -303,7 +303,7 @@ export async function analyzeMessage({ text, image, language, source = 'message'
     throw AppError.unprocessable(reason || localized(language, 'unreadableImage'), 'UNREADABLE_IMAGE');
   }
 
-  const result = { ...normaliseAnalysis(raw, language), source: 'ai' };
+  const result = applyAnalysisFloor({ ...normaliseAnalysis(raw, language), source: 'ai' }, text, language);
   setCached(key, result);
   return result;
 }
@@ -414,8 +414,9 @@ export async function analyzeLiveCall({ transcript, language }) {
       || localized(language, riskLevel === 'safe' ? 'liveSafeSayThis' : 'liveScamSayThis'),
     source: 'ai',
   };
-  setCached(key, result);
-  return result;
+  const floored = applyLiveCallFloor(result, transcript, language);
+  setCached(key, floored);
+  return floored;
 }
 
 // ---------------------------------------------------------------------------

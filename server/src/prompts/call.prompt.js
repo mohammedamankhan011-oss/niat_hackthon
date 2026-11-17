@@ -24,6 +24,7 @@ SCORING:
 - risk_level "safe": risk_score 0–30, "suspicious": 31–69, "scam": 70–100.
 - Early in a call with too little to judge, return "safe" with a low score and calm advice. As soon as clear warning signs appear (authority + threat, secrecy, OTP/PIN/remote-app request, money transfer demand), raise the level. Prefer "suspicious" when unsure.
 - Never say the call is 100% safe.
+- If the caller asks the person to tell, read out, share or confirm ANY OTP, PIN, CVV, password or code they received (even casually, e.g. "an OTP has come, tell me"), that is a scam: risk_level "scam", risk_score 85 or more.
 
 OUTPUT (in ${languageName}, except "phrase"):
 - triggers: the warning signs heard so far. "phrase" is an EXACT short quote copied from the transcript (original language, as transcribed); "why" is one simple sentence explaining the danger. Empty array if none.

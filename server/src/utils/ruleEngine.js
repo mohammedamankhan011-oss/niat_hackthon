@@ -18,6 +18,27 @@ const NEGATION_AFTER = /^\S*\s*\S*\s*((मत|न)(\s|$|।)|न\s*करें|
 // Genuine bank warnings ("never tell anyone your OTP") use secrecy words too.
 const NEAR_CREDENTIALS = /otp|pin\b|cvv|password|ओटीपी|पिन|पासवर्ड|ಒಟಿಪಿ|ಪಿನ್|ಪಾಸ್‌?ವರ್ಡ್/iu;
 
+
+// Building blocks for the OTP rule (English, romanised Hindi, Hindi, Kannada).
+const CREDENTIAL = [
+  'o\\.?\\s?t\\.?\\s?p\\b', 'one[\\s-]*time[\\s-]*password', 'verification\\s*code', '\\d\\s*-?\\s*digit\\s*(code|number)',
+  '\\bpin\\b', '\\bcode\\b', '\\bcvv\\b', '\\bpassword\\b', '\\bupi\\s*pin\\b',
+  'ओटीपी', 'ओ\\.?टी\\.?पी', 'पिन', 'पासवर्ड', 'कोड',
+  'ಒಟಿಪಿ', 'ಓಟಿಪಿ', 'ಪಿನ್', 'ಪಾಸ್‌?ವರ್ಡ್', 'ಕೋಡ್',
+].join('|');
+const REQUEST = [
+  '\\btell\\b', '\\bshare\\b', '\\bsend\\b', '\\bgive\\b', '\\bread\\b', '\\bforward\\b', '\\benter\\b', '\\bsay\\b', '\\bspeak\\b', '\\bconfirm\\b',
+  '\\bbata(o|iye|iyega|ye|do|na)?\\b', '\\bbol(o|iye|do)\\b', '\\bbhej(o|iye|do)\\b', '\\bsuna(o|iye)\\b', '\\bpadh(o|iye|kar)\\b',
+  'बताओ', 'बताइए', 'बताइये', 'बताएं', 'बताएँ', 'बता\\s*दो', 'बता\\s*दीजिए', 'बोलो', 'बोलिए', 'भेजो', 'भेजें', 'भेजिए', 'सुनाओ', 'पढ़कर', 'पढ़िए',
+  'ಹೇಳಿ', 'ಹೇಳು', 'ತಿಳಿಸಿ', 'ಕಳುಹಿಸಿ', 'ಕಳಿಸಿ', 'ಓದಿ',
+].join('|');
+const ARRIVED = [
+  '\\b(has|have|did)?\\s*(come|came|arrived|received|receive|got|get)\\b', '\\baay(a|i|ega)\\b', '\\bmila\\b',
+  'आया', 'आई', 'मिला', 'ಬಂದಿದೆ', 'ಬಂತು', 'ಬಂತಾ',
+].join('|');
+// A negation inside the matched phrase ("OTP kisi ko mat batao") means it is a warning, not a request.
+const INNER_NEGATION = /\b(not|never|don'?t|mat|nahi|nahin)\b|मत|नहीं|(?:^|\s)ना?(?=\s|$|।)|ಬೇಡ|ಮಾಡಬೇಡಿ|ಹೇಳಬೇಡಿ|ಹಂಚಿಕೊಳ್ಳಬೇಡಿ/iu;
+
 /**
  * Each rule: scam type it points to, weight added to the risk score (counted
  * once per rule), patterns, and the localized red flag text.
@@ -76,14 +97,21 @@ const RULES = [
     },
   },
   {
+    // Asking for an OTP / PIN / code on a call or in a message is almost always a scam,
+    // so this rule alone is enough for a "scam" verdict (8 + 62 = 70).
     id: 'otp',
     scamType: 'kyc_bank',
-    weight: 35,
+    weight: 62,
     negatable: true,
+    negateInside: true,
     patterns: [
-      /(share|send|tell|give|read|forward|enter)\s*(me\s*|us\s*)?(the\s*|your\s*)?(otp|pin|cvv|password|one[\s-]*time\s*password)/i,
-      /(otp|ओटीपी)\s*(batao|bataiye|bhejo|बताओ|बताइए|बताएं|बताइये|भेजो|भेजें)/iu,
-      /(ಒಟಿಪಿ|otp)\s*(ಹೇಳಿ|ಕಳುಹಿಸಿ|ತಿಳಿಸಿ)/iu,
+      // credential word ... request word  ("OTP has come, tell me", "OTP aaya hai bataiye")
+      new RegExp(`(${CREDENTIAL})[^.?!।\\n]{0,60}?(${REQUEST})`, 'iu'),
+      // request word ... credential word  ("please tell me the OTP", "read the 6 digit code")
+      new RegExp(`(${REQUEST})[^.?!।\\n]{0,40}?(${CREDENTIAL})`, 'iu'),
+      // caller checking that an OTP arrived ("you got an OTP?", "OTP aaya kya")
+      new RegExp(`(${CREDENTIAL})[^.?!।\\n]{0,30}?(${ARRIVED})`, 'iu'),
+      new RegExp(`(${ARRIVED})[^.?!।\\n]{0,15}?(${CREDENTIAL})`, 'iu'),
       /anydesk|teamviewer|quick\s*support|rustdesk|screen\s*shar(e|ing)/i,
     ],
     text: {
@@ -348,6 +376,7 @@ function firstMatch(rule, text) {
     const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
     for (const match of text.matchAll(new RegExp(pattern.source, flags))) {
       if (rule.negatable && isNegated(text, match.index, match[0].length)) continue;
+      if (rule.negateInside && INNER_NEGATION.test(match[0])) continue;
       if (rule.skipNearCredentials) {
         const around = text.slice(Math.max(0, match.index - 25), match.index + match[0].length + 25);
         if (NEAR_CREDENTIALS.test(around)) continue;
@@ -442,5 +471,46 @@ export function analyzeLiveCallWithRules(transcript, language = 'en') {
     advice: localized(language, adviceKey),
     say_this: localized(language, riskLevel === 'safe' ? 'liveSafeSayThis' : 'liveScamSayThis'),
     source: 'rules',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Safety floor: the AI may never rate content LOWER than the clear rules do.
+// (e.g. a caller asking for an OTP must never show "safe").
+// ---------------------------------------------------------------------------
+const RANK = { safe: 0, suspicious: 1, scam: 2 };
+
+/** Raises a live-call AI verdict to the rule verdict when the rules are stricter. */
+export function applyLiveCallFloor(result, transcript, language = 'en') {
+  const rules = analyzeLiveCallWithRules(transcript, language);
+  if (RANK[rules.risk_level] <= RANK[result.risk_level]) return result;
+  const seen = new Set((result.triggers ?? []).map((t) => String(t.phrase).toLowerCase()));
+  return {
+    ...result,
+    risk_level: rules.risk_level,
+    risk_score: Math.max(rules.risk_score, result.risk_score ?? 0),
+    scam_type: rules.scam_type,
+    triggers: [...rules.triggers.filter((t) => !seen.has(String(t.phrase).toLowerCase())), ...(result.triggers ?? [])].slice(0, 8),
+    advice: rules.advice,
+    say_this: rules.say_this,
+  };
+}
+
+/** Raises a message-scan AI verdict to the rule verdict when the rules are stricter. */
+export function applyAnalysisFloor(result, text, language = 'en') {
+  if (typeof text !== 'string' || !text.trim()) return result;
+  const rules = analyzeWithRules(text, language);
+  if (RANK[rules.risk_level] <= RANK[result.risk_level]) return result;
+  const seen = new Set((result.red_flags ?? []).map((f) => String(f.flag).toLowerCase()));
+  return {
+    ...result,
+    risk_level: rules.risk_level,
+    risk_score: Math.max(rules.risk_score, result.risk_score ?? 0),
+    scam_type: rules.scam_type,
+    red_flags: [...rules.red_flags.filter((f) => !seen.has(String(f.flag).toLowerCase())), ...(result.red_flags ?? [])].slice(0, 10),
+    summary: rules.summary,
+    explanation: result.risk_level === 'safe' ? rules.summary : result.explanation,
+    actions: rules.actions,
+    safe_reasons: [],
   };
 }
