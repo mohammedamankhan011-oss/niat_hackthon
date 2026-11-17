@@ -72,3 +72,13 @@ export const reportLimiter = rateLimit({
   keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip)),
   handler: limitHandler('You have sent many reports. Please try again later.', 'RATE_LIMITED'),
 });
+
+// Live audio transcription: one short chunk every few seconds during a call.
+export const transcribeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip)),
+  handler: limitHandler('Too many audio chunks. Please wait a moment.', 'RATE_LIMITED'),
+});

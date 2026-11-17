@@ -58,6 +58,54 @@ export function uploadScanImage(req, res, next) {
   });
 }
 
+// Live transcription: one short chunk, kept in memory only. Browsers add codec
+// details ("audio/webm;codecs=opus"), so only the base type is checked.
+const CHUNK_AUDIO_TYPES = {
+  'audio/webm': 'audio/webm',
+  'audio/ogg': 'audio/ogg',
+  'audio/mp4': 'audio/mp4',
+  'audio/wav': 'audio/wav',
+  'audio/wave': 'audio/wav',
+  'audio/x-wav': 'audio/wav',
+};
+const CHUNK_MAX_BYTES = 2 * 1024 * 1024;
+
+const multerChunkUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: CHUNK_MAX_BYTES, files: 1, fields: 10 },
+  fileFilter(_req, file, cb) {
+    const base = String(file.mimetype).toLowerCase().split(';')[0].trim();
+    if (!CHUNK_AUDIO_TYPES[base]) {
+      cb(AppError.badRequest('Only WebM, OGG, MP4 or WAV audio is allowed', 'INVALID_FILE_TYPE'));
+      return;
+    }
+    file.mimetype = CHUNK_AUDIO_TYPES[base];
+    cb(null, true);
+  },
+});
+
+export function uploadAudioChunk(req, res, next) {
+  multerChunkUpload.single('audio')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        next(new AppError(413, 'Audio chunk is too large. The maximum size is 2 MB.', 'FILE_TOO_LARGE'));
+        return;
+      }
+      next(AppError.badRequest('Upload a single audio chunk in the "audio" field', 'INVALID_UPLOAD'));
+      return;
+    }
+    if (err) {
+      next(err);
+      return;
+    }
+    if (!req.file || req.file.size === 0) {
+      next(AppError.badRequest('No audio data provided in the "audio" field', 'MISSING_AUDIO'));
+      return;
+    }
+    next();
+  });
+}
+
 // Allowed audio types for live stream chunks and call recordings
 const ALLOWED_AUDIO_MIMES = [
   'audio/webm',

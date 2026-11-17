@@ -1,4 +1,10 @@
-import { deleteScan, getScan, listScans } from '../services/db.service.js';
+import {
+  deleteScan,
+  getScan,
+  getScanForExplain,
+  listScans,
+  saveScanExplanations,
+} from '../services/db.service.js';
 import { explainScan } from '../services/gemini.service.js';
 import { analyseAndSaveScan, maskFlags, maskList } from '../services/scan.service.js';
 import { AppError } from '../utils/AppError.js';
@@ -35,18 +41,59 @@ export async function getMyScan(req, res) {
   res.json({ scan });
 }
 
+const explanationOf = (scan) => ({
+  explanation: scan.explanation,
+  summary: scan.summary,
+  red_flags: scan.red_flags,
+  actions: scan.actions,
+});
+
+/**
+ * Re-explains a scan in another language. Answers instantly from the scan's
+ * own language or the per-language cache; otherwise asks the AI and caches the
+ * result. If the AI is unavailable, returns the original text with
+ * translated: false instead of an error.
+ */
 export async function explainMyScan(req, res) {
-  const scan = await getScan(req.user.id, req.valid.params.id);
+  const { id } = req.valid.params;
+  const { language } = req.valid.body;
+  const scan = await getScanForExplain(req.user.id, id);
   if (!scan) throw AppError.notFound('Scan not found', 'SCAN_NOT_FOUND');
 
-  const result = await explainScan(scan, req.valid.body.language);
+  if (language === scan.language) {
+    res.json({ ...explanationOf(scan), translated: true, cached: true });
+    return;
+  }
 
-  res.json({
+  const cached = scan.explanations?.[language];
+  if (cached) {
+    res.json({ ...cached, translated: true, cached: true });
+    return;
+  }
+
+  let result;
+  try {
+    result = await explainScan(scan, language);
+  } catch (err) {
+    console.warn(`[explain] scan ${id} -> ${language} failed (${err.code ?? err.message}); returning original`);
+    res.json({ ...explanationOf(scan), translated: false });
+    return;
+  }
+
+  const explanation = {
     explanation: maskSensitiveNumbers(result.explanation),
     summary: maskSensitiveNumbers(result.summary),
     red_flags: maskFlags(result.red_flags),
     actions: maskList(result.actions),
-  });
+  };
+
+  try {
+    await saveScanExplanations(req.user.id, id, { ...(scan.explanations ?? {}), [language]: explanation });
+  } catch (err) {
+    console.warn(`[explain] could not cache explanation for scan ${id}: ${err.message}`);
+  }
+
+  res.json({ ...explanation, translated: true, cached: false });
 }
 
 export async function deleteMyScan(req, res) {

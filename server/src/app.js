@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -13,6 +14,7 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
+  app.use(compression());
   app.use(helmet());
   app.use(
     cors({
@@ -29,6 +31,12 @@ export function createApp() {
       maxAge: 600,
     }),
   );
+  // Keep-awake / uptime check: no database or AI calls, not rate limited.
+  app.get('/api/health', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, status: 'ok' });
+  });
+
   app.use(express.json({ limit: '100kb' }));
 
   app.use('/api', generalLimiter, apiRoutes);

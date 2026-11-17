@@ -16,6 +16,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   GEMINI_MODEL: z.preprocess(emptyToUndefined, z.string().default('gemini-2.5-flash')),
   GEMINI_FALLBACK_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  GEMINI_LITE_MODEL: z.preprocess(emptyToUndefined, z.string().default('gemini-3.5-flash-lite')),
   SUPABASE_URL: z.url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20, 'SUPABASE_SERVICE_ROLE_KEY is required'),
 });
@@ -42,12 +43,19 @@ export const config = {
   gemini: {
     apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_MODEL,
-    // Comma-separated list, tried in order when the main model is busy or out of quota.
+    // Fast, high-quota model tried right after the main one (and first for
+    // audio transcription).
+    liteModel: env.GEMINI_LITE_MODEL,
+    // Comma-separated list, tried in order after the main and lite models.
     fallbackModels: (env.GEMINI_FALLBACK_MODEL ?? '')
       .split(',')
       .map((model) => model.trim())
       .filter(Boolean),
-    timeoutMs: 25_000,
+    perModelTimeoutMs: 12_000,
+    totalBudgetMs: 25_000,
+    transcribeTimeoutMs: 10_000,
+    transcribeBudgetMs: 12_000,
+    modelCooldownMs: 10 * 60 * 1000,
   },
   supabase: {
     url: env.SUPABASE_URL,

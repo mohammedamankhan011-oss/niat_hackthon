@@ -10,10 +10,6 @@ import usersRoutes from './users.routes.js';
 
 const router = Router();
 
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
 router.use('/auth', authRoutes);
 router.use('/users', usersRoutes);
 router.use('/scans', scansRoutes);

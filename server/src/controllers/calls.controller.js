@@ -1,4 +1,4 @@
-import { analyzeLiveCall, transcribeAudio, analyzeAudioWithGemini } from '../services/gemini.service.js';
+import { analyzeAudioWithGemini, analyzeLiveCall, transcribeChunk } from '../services/gemini.service.js';
 import { analyseAndSaveScan } from '../services/scan.service.js';
 import { AppError } from '../utils/AppError.js';
 
@@ -37,14 +37,29 @@ export async function save(req, res) {
   res.status(201).json({ scan });
 }
 
-/** POST /api/calls/transcribe — transcribe an in-memory audio chunk via Gemini. */
+const SPEECH_LOCALES = { en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN' };
+
+/** Accepts "en-IN" / "hi-IN" / "kn-IN" (lang) or "en" / "hi" / "kn" (language). */
+function speechLocale(req) {
+  const requested = String(req.body?.lang ?? req.body?.language ?? '').trim().toLowerCase();
+  const short = requested.split('-')[0];
+  return SPEECH_LOCALES[short] ?? SPEECH_LOCALES[req.user?.preferred_language] ?? 'en-IN';
+}
+
+/**
+ * POST /api/calls/transcribe — speech-to-text for one live audio chunk.
+ * Always 200: { text } (also returned as `transcript` for older clients), or
+ * { text: "", error: "transcribe_failed" } when no model could transcribe it.
+ * The audio is processed in memory and never stored.
+ */
 export async function transcribe(req, res) {
-  if (!req.file) {
-    throw AppError.badRequest('No audio data received', 'MISSING_AUDIO');
+  try {
+    const text = await transcribeChunk({ audio: req.file, lang: speechLocale(req) });
+    res.json({ text, transcript: text });
+  } catch (err) {
+    console.warn(`[transcribe] failed (${err.code ?? err.message})`);
+    res.json({ text: '', transcript: '', error: 'transcribe_failed' });
   }
-  const language = req.body?.language ?? req.user?.preferred_language ?? 'en';
-  const result = await transcribeAudio({ audio: req.file, language });
-  res.json(result);
 }
 
 /** POST /api/calls/analyze-audio — transcribe audio recording and return live scam analysis. */

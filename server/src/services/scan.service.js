@@ -83,5 +83,6 @@ export async function analyseAndSaveScan({ userId, text, image, language, inputT
   });
 
   await notifyGuardiansOfScan(userId, scan);
-  return scan;
+  // "ai" or "rules" (when every AI model was unavailable); not stored.
+  return { ...scan, source: analysis.source ?? 'ai' };
 }

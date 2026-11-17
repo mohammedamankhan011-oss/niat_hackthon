@@ -101,6 +101,59 @@ export async function getScan(userId, scanId) {
   );
 }
 
+const SCAN_EXPLAIN_BASE =
+  'id, message_text, risk_level, risk_score, scam_type, red_flags, summary, explanation, actions, language';
+const SCAN_EXPLAIN = `${SCAN_EXPLAIN_BASE}, explanations`;
+
+// The explanations cache column comes from migration 003. If a database does
+// not have it yet, /explain keeps working without the cache, and the column is
+// checked for again every few minutes (so no restart is needed after migrating).
+const EXPLANATIONS_RECHECK_MS = 5 * 60 * 1000;
+let explanationsMissingUntil = 0;
+
+const isMissingExplanationsColumn = (error) =>
+  (error?.code === '42703' || error?.code === 'PGRST204') && /explanations/.test(error.message ?? '');
+
+function markExplanationsMissing() {
+  if (explanationsMissingUntil <= Date.now()) {
+    console.warn('[db] scans.explanations column not found; explanation cache disabled (apply migration 003)');
+  }
+  explanationsMissingUntil = Date.now() + EXPLANATIONS_RECHECK_MS;
+}
+
+/**
+ * Scan fields needed to (re-)explain it, including cached explanations
+ * (`{}` when the cache column does not exist).
+ */
+export async function getScanForExplain(userId, scanId) {
+  if (explanationsMissingUntil <= Date.now()) {
+    const { data, error } = await supabase
+      .from('scans').select(SCAN_EXPLAIN).eq('id', scanId).eq('user_id', userId).maybeSingle();
+    if (!error) return data;
+    if (!isMissingExplanationsColumn(error)) throw dbError(error, 'getScanForExplain');
+    markExplanationsMissing();
+  }
+
+  const data = unwrap(
+    await supabase.from('scans').select(SCAN_EXPLAIN_BASE).eq('id', scanId).eq('user_id', userId).maybeSingle(),
+    'getScanForExplain',
+  );
+  return data ? { ...data, explanations: {} } : null;
+}
+
+/** Saves the explanations cache. Returns false (no error) if the column is missing. */
+export async function saveScanExplanations(userId, scanId, explanations) {
+  if (explanationsMissingUntil > Date.now()) return false;
+
+  const { error } = await supabase.from('scans').update({ explanations }).eq('id', scanId).eq('user_id', userId);
+  if (!error) return true;
+  if (isMissingExplanationsColumn(error)) {
+    markExplanationsMissing();
+    return false;
+  }
+  throw dbError(error, 'saveScanExplanations');
+}
+
 export async function deleteScan(userId, scanId) {
   const rows = unwrap(
     await supabase.from('scans').delete().eq('id', scanId).eq('user_id', userId).select('id'),
