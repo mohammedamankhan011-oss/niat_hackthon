@@ -101,10 +101,15 @@ export function LiveCallGuardPage() {
 
   const isMountedRef = useRef(true);
   const demoTimersRef = useRef([]);
+  const demoActiveRef = useRef(false);
+  const demoSeqRef = useRef(0);
+  const demoAppliedSeqRef = useRef(0);
 
   // Web Speech + MediaRecorder + Web Audio Analyser Hook
   const {
     isListening,
+    isProcessing,
+    engine,
     transcript,
     interimText,
     micLevel,
@@ -145,47 +150,103 @@ export function LiveCallGuardPage() {
     return () => {
       isMountedRef.current = false;
       clearDemoTimers();
+      demoActiveRef.current = false;
+      try {
+        window.speechSynthesis?.cancel();
+      } catch (_) {}
     };
   }, []);
 
-  // Offline-style Demo Mode: scripted transcript appears line by line, risk climbs, alert overlay fires
-  const handleStartDemo = () => {
-    if (isListening) stopMic();
+  // Demo Mode: plays a sample "CBI digital arrest" call aloud, line by line.
+  // The transcript is checked by the REAL AI (/api/calls/analyze); the scripted
+  // stages are used only if the server cannot answer.
+  const speakDemoLine = (text, onDone) => {
+    const fallbackMs = Math.min(12000, 1200 + text.split(' ').length * 330);
+    const minMs = Math.min(9000, 900 + text.split(' ').length * 240);
+    const startedAt = Date.now();
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      // If the voice could not play, still keep a natural reading pace
+      const wait = Math.max(0, minMs - (Date.now() - startedAt));
+      const t = setTimeout(onDone, wait);
+      demoTimersRef.current.push(t);
+    };
+    const timer = setTimeout(done, fallbackMs + 1500);
+    demoTimersRef.current.push(timer);
+    try {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-IN';
+        u.rate = 1.05;
+        const voice = window.speechSynthesis.getVoices().find((v) => v.lang === 'en-IN');
+        if (voice) u.voice = voice;
+        u.onend = done;
+        u.onerror = done;
+        window.speechSynthesis.speak(u);
+        return;
+      }
+    } catch (_) {}
+    clearTimeout(timer);
+    const t2 = setTimeout(done, fallbackMs);
+    demoTimersRef.current.push(t2);
+  };
+
+  const analyzeDemoTranscript = (text, fallbackStage) => {
+    const seq = ++demoSeqRef.current;
+    api.calls
+      .analyze({ transcript: text, language: selectedLang })
+      .then((res) => {
+        if (!demoActiveRef.current && seq !== demoSeqRef.current) return;
+        if (seq < demoAppliedSeqRef.current || !res?.analysis) return;
+        demoAppliedSeqRef.current = seq;
+        updateAnalysisState({ ...res.analysis, source: res.analysis.source || res.source });
+      })
+      .catch(() => {
+        if (seq < demoAppliedSeqRef.current) return;
+        demoAppliedSeqRef.current = seq;
+        updateAnalysisState(fallbackStage);
+      });
+  };
+
+  const handleStartDemo = async () => {
+    if (isListening) await stopMic();
     clearDemoTimers();
     resetTranscript();
     resetAnalysis();
     setError(null);
     setIsDemoRunning(true);
     setDemoMicLevel(45);
+    demoActiveRef.current = true;
+    demoSeqRef.current = 0;
+    demoAppliedSeqRef.current = 0;
 
-    let accumulatedLines = '';
-
-    CBI_DIGITAL_ARREST_DEMO.forEach((segment, idx) => {
-      const lineDelay = idx * 2400 + 300;
-
-      const tId = setTimeout(() => {
-        if (!isMountedRef.current) return;
-        accumulatedLines = accumulatedLines
-          ? `${accumulatedLines}\n\n${segment.text}`
-          : segment.text;
-        setFullTranscript(accumulatedLines);
-        setDemoMicLevel(55 + ((idx * 17) % 35));
-
-        const stage = DEMO_STAGE_UPDATES[Math.min(idx, DEMO_STAGE_UPDATES.length - 1)];
-        updateAnalysisState(stage);
-
-        if (idx === CBI_DIGITAL_ARREST_DEMO.length - 1) {
-          setIsDemoRunning(false);
-          setDemoMicLevel(0);
-        }
-      }, lineDelay);
-
-      demoTimersRef.current.push(tId);
-    });
+    let accumulated = '';
+    const playLine = (idx) => {
+      if (!isMountedRef.current || !demoActiveRef.current) return;
+      if (idx >= CBI_DIGITAL_ARREST_DEMO.length) {
+        demoActiveRef.current = false;
+        setIsDemoRunning(false);
+        setDemoMicLevel(0);
+        return;
+      }
+      const segment = CBI_DIGITAL_ARREST_DEMO[idx];
+      accumulated = accumulated ? `${accumulated}\n\n${segment.text}` : segment.text;
+      setFullTranscript(accumulated);
+      setDemoMicLevel(55 + ((idx * 17) % 35));
+      analyzeDemoTranscript(accumulated, DEMO_STAGE_UPDATES[Math.min(idx, DEMO_STAGE_UPDATES.length - 1)]);
+      speakDemoLine(segment.text, () => playLine(idx + 1));
+    };
+    playLine(0);
   };
 
   const handleStopDemo = () => {
+    demoActiveRef.current = false;
     clearDemoTimers();
+    try {
+      window.speechSynthesis?.cancel();
+    } catch (_) {}
     setIsDemoRunning(false);
     setDemoMicLevel(0);
   };
@@ -195,7 +256,7 @@ export function LiveCallGuardPage() {
     if (isDemoRunning) handleStopDemo();
 
     if (isListening) {
-      stopMic();
+      await stopMic();
     } else {
       setError(null);
       await startMic();
@@ -204,16 +265,20 @@ export function LiveCallGuardPage() {
 
   // Stop button -> POST /api/calls with the full transcript -> go to /scans/:id with router state
   const handleStopAndSave = async () => {
-    if (isListening) stopMic();
+    if (savingCall) return;
     if (isDemoRunning) handleStopDemo();
+    setSavingCall(true);
 
-    const textToSave = transcript.trim() || manualTypedText.trim();
-    if (!textToSave) {
-      setError('No conversation was recorded to analyze.');
+    // Wait for the last audio chunk to be transcribed so no words are lost
+    const finalText = isListening ? await stopMic() : transcript;
+    const textToSave = (finalText || transcript || '').trim() || manualTypedText.trim();
+
+    if (textToSave.split(/\s+/).filter(Boolean).length < 4) {
+      setSavingCall(false);
+      setError('Not enough of the call was heard to make a report. Let the caller speak for a few more seconds, or type what they said below.');
       return;
     }
 
-    setSavingCall(true);
     try {
       const res = await api.calls.save({
         transcript: textToSave,
@@ -376,6 +441,15 @@ export function LiveCallGuardPage() {
         </div>
       </div>
 
+      {isDemoRunning && (
+        <div role="status" className="bg-sky-50 border-2 border-sky-300 text-sky-950 rounded-2xl p-4 text-sm font-bold flex items-center gap-2.5">
+          <Info className="w-5 h-5 text-sky-700 shrink-0" />
+          <span>
+            Demo mode plays a sample scam call (turn your volume up). Your microphone is OFF in demo, and the real AI checks the words as they come. To test your own voice or a real call, stop the demo and press Start Listening.
+          </span>
+        </div>
+      )}
+
       {/* Friendly Microphone / Page Error Box */}
       <ErrorBox error={micError || error} />
 
@@ -430,11 +504,20 @@ export function LiveCallGuardPage() {
               />
               <span className="text-xs font-black uppercase tracking-wider text-slate-600">
                 {isDemoRunning
-                  ? 'Demo Call Simulation Active'
+                  ? 'Demo: sample scam call playing'
                   : isListening
-                  ? 'Microphone Listening to Speaker'
+                  ? engine === 'server'
+                    ? 'Listening (AI transcription)'
+                    : 'Listening (live speech)'
                   : 'Guard Standby'}
               </span>
+
+              {isProcessing && !isDemoRunning && (
+                <span className="text-xs font-bold text-sky-800 bg-sky-50 px-3 py-1 rounded-full inline-flex items-center gap-1.5 border border-sky-300">
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+                  <span>Transcribing…</span>
+                </span>
+              )}
 
               {isAnalyzing && (
                 <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full inline-flex items-center gap-1.5 border border-amber-300">
@@ -542,7 +625,7 @@ export function LiveCallGuardPage() {
           <button
             type="button"
             onClick={handleStopAndSave}
-            disabled={savingCall || (!transcript.trim() && !manualTypedText.trim())}
+            disabled={savingCall || (!isListening && !transcript.trim() && !manualTypedText.trim())}
             className="min-h-[56px] py-3.5 px-5 bg-navy-900 hover:bg-navy-800 disabled:bg-slate-300 text-white rounded-2xl text-lg font-black transition-all shadow-md flex items-center justify-center gap-2.5"
           >
             <PhoneOff className="w-5 h-5 shrink-0" />

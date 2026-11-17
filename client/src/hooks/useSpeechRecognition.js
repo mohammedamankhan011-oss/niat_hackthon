@@ -2,31 +2,49 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api/endpoints';
 import { isMockMode } from '../api/client';
 
-const MIME_CANDIDATES = [
-  'audio/webm;codecs=opus',
-  'audio/webm',
-  'audio/mp4',
-  'audio/ogg'
-];
+/*
+ * Live Call Guard listening engine.
+ *
+ * Two engines, picked automatically:
+ *  - "browser": Chrome/Edge desktop speech recognition. Instant words, no server cost.
+ *  - "server":  MediaRecorder chunks sent to POST /api/calls/transcribe.
+ *               Used on phones, Brave/Firefox/Safari, or when the browser engine fails.
+ *
+ * The mic level meter always runs so the user can SEE that sound is reaching the app.
+ */
+
+const CHUNK_MS = 6000; // length of each audio chunk sent to the server
+const SOUND_LEVEL = 3; // mic level (0-100) that counts as "sound"
+const SILENT_CHUNK_LEVEL = 2; // chunks whose peak stays below this are not uploaded
+const NO_AUDIO_WARNING_MS = 8000;
+const BROWSER_STALL_MS = 15000; // sound heard but no words for this long -> switch to server engine
+const FINAL_FLUSH_TIMEOUT_MS = 9000;
+
+const MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
 
 function getSupportedMimeType() {
-  if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') {
-    return '';
-  }
+  if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') return '';
   for (const type of MIME_CANDIDATES) {
     try {
-      if (window.MediaRecorder.isTypeSupported(type)) {
-        return type;
-      }
+      if (window.MediaRecorder.isTypeSupported(type)) return type;
     } catch (_) {}
   }
   return '';
 }
 
 function getLocale(lang) {
-  if (lang === 'hi') return 'hi-IN';
-  if (lang === 'kn') return 'kn-IN';
+  if (lang === 'hi' || lang === 'hi-IN') return 'hi-IN';
+  if (lang === 'kn' || lang === 'kn-IN') return 'kn-IN';
   return 'en-IN';
+}
+
+function canUseBrowserEngine(SR) {
+  if (!SR || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const isBrave = Boolean(navigator.brave);
+  const isChromium = /Chrome|Edg\//.test(ua);
+  return isChromium && !isMobile && !isBrave;
 }
 
 export function useSpeechRecognition({ language = 'en', onTranscriptChange } = {}) {
@@ -37,485 +55,491 @@ export function useSpeechRecognition({ language = 'en', onTranscriptChange } = {
   const [noAudioWarning, setNoAudioWarning] = useState(false);
   const [serviceNotice, setServiceNotice] = useState(null);
   const [error, setError] = useState(null);
+  const [engine, setEngine] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isMountedRef = useRef(true);
   const isListeningRef = useRef(false);
-  const manualStopRef = useRef(false);
   const languageRef = useRef(language);
-  const serverHasTranscribedRef = useRef(false);
+  const transcriptRef = useRef('');
+  const engineRef = useRef(null);
+  const onChangeRef = useRef(onTranscriptChange);
 
-  // Hardware & engine refs
   const streamRef = useRef(null);
   const audioCtxRef = useRef(null);
-  const analyserRef = useRef(null);
   const levelRafRef = useRef(null);
   const lastSoundTimeRef = useRef(0);
-  const chunkPeakLevelRef = useRef(0);
+  const chunkStatsRef = useRef({ peak: 0 });
 
-  const mediaRecorderRef = useRef(null);
-  const chunkIntervalRef = useRef(null);
-  const transcribeAbortRef = useRef(null);
+  const recorderRef = useRef(null);
+  const chunkTimerRef = useRef(null);
+  const appendChainRef = useRef(Promise.resolve());
+  const pendingUploadsRef = useRef(0);
+  const abortControllersRef = useRef(new Set());
 
   const recognitionRef = useRef(null);
-  const restartTimerRef = useRef(null);
+  const recognitionRestartRef = useRef(null);
+  const lastWordsTimeRef = useRef(0);
+  const watchdogRef = useRef(null);
 
   const SpeechRecognitionClass =
-    typeof window !== 'undefined'
-      ? window.SpeechRecognition || window.webkitSpeechRecognition
-      : null;
+    typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
   const isSupported =
     typeof window !== 'undefined' &&
-    Boolean(
-      SpeechRecognitionClass ||
-        (navigator?.mediaDevices?.getUserMedia && typeof window.MediaRecorder !== 'undefined')
-    );
+    Boolean(navigator?.mediaDevices?.getUserMedia) &&
+    Boolean(SpeechRecognitionClass || typeof window.MediaRecorder !== 'undefined');
 
+  useEffect(() => {
+    onChangeRef.current = onTranscriptChange;
+  }, [onTranscriptChange]);
+
+  // ---------- transcript helpers ----------
+  const commitTranscript = useCallback((next) => {
+    transcriptRef.current = next;
+    if (!isMountedRef.current) return;
+    setTranscript(next);
+    if (onChangeRef.current) onChangeRef.current(next);
+  }, []);
+
+  const appendFinalTranscript = useCallback(
+    (chunkText) => {
+      const clean = String(chunkText || '').replace(/\s+/g, ' ').trim();
+      if (!clean) return;
+      lastWordsTimeRef.current = Date.now();
+      const next = transcriptRef.current ? `${transcriptRef.current} ${clean}` : clean;
+      commitTranscript(next);
+    },
+    [commitTranscript]
+  );
+
+  // ---------- mic level meter ----------
+  const startLevelMeter = useCallback((stream) => {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    try {
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.6;
+      source.connect(analyser);
+      audioCtxRef.current = ctx;
+      lastSoundTimeRef.current = Date.now();
+
+      const data = new Uint8Array(analyser.fftSize);
+      let lastUi = 0;
+      const tick = (now) => {
+        if (!isListeningRef.current || !isMountedRef.current) return;
+        levelRafRef.current = requestAnimationFrame(tick);
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const level = Math.min(100, Math.round(Math.sqrt(sum / data.length) * 400));
+
+        // Every frame counts toward the current chunk's peak (no UI throttling here)
+        if (level > chunkStatsRef.current.peak) chunkStatsRef.current.peak = level;
+        if (level >= SOUND_LEVEL) lastSoundTimeRef.current = Date.now();
+
+        if (now - lastUi < 100) return;
+        lastUi = now;
+        setMicLevel(level);
+        setNoAudioWarning(Date.now() - lastSoundTimeRef.current >= NO_AUDIO_WARNING_MS);
+      };
+      levelRafRef.current = requestAnimationFrame(tick);
+    } catch (e) {
+      console.warn('Mic level meter unavailable:', e);
+    }
+  }, []);
+
+  // ---------- server engine (MediaRecorder chunks) ----------
+  const uploadChunk = useCallback(
+    (blob) => {
+      if (isMockMode) return;
+      const controller = new AbortController();
+      abortControllersRef.current.add(controller);
+      pendingUploadsRef.current += 1;
+      if (isMountedRef.current) setIsProcessing(true);
+
+      const request = api.calls
+        .transcribe({ audioBlob: blob, language: languageRef.current, signal: controller.signal })
+        .then((res) => {
+          if (isMountedRef.current) setServiceNotice(null);
+          return String(res?.text ?? res?.transcript ?? '').trim();
+        })
+        .catch((err) => {
+          if (err?.name !== 'CanceledError' && err?.name !== 'AbortError' && isMountedRef.current) {
+            setServiceNotice('Transcription is slow right now — still listening. You can also type below.');
+          }
+          return '';
+        });
+
+      // Append results strictly in recording order, even if replies come back out of order
+      appendChainRef.current = appendChainRef.current
+        .then(() => request)
+        .then((text) => {
+          if (text) appendFinalTranscript(text);
+        })
+        .finally(() => {
+          abortControllersRef.current.delete(controller);
+          pendingUploadsRef.current = Math.max(0, pendingUploadsRef.current - 1);
+          if (isMountedRef.current && pendingUploadsRef.current === 0) setIsProcessing(false);
+        });
+    },
+    [appendFinalTranscript]
+  );
+
+  const startRecorderChunk = useCallback(
+    (stream) => {
+      if (!isListeningRef.current || !stream.active) return;
+      const mimeType = getSupportedMimeType();
+      let recorder;
+      try {
+        recorder = mimeType ? new window.MediaRecorder(stream, { mimeType }) : new window.MediaRecorder(stream);
+      } catch (_) {
+        try {
+          recorder = new window.MediaRecorder(stream);
+        } catch (err) {
+          console.warn('MediaRecorder unavailable:', err);
+          return;
+        }
+      }
+
+      // Each chunk owns its own stats object, so the next chunk can never reset it
+      const stats = { peak: 0 };
+      chunkStatsRef.current = stats;
+      const parts = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) parts.push(e.data);
+      };
+      recorder.onstop = () => {
+        if (!parts.length) return;
+        const blob = new Blob(parts, { type: recorder.mimeType || mimeType || 'audio/webm' });
+        if (blob.size < 1000) return;
+        if (stats.peak < SILENT_CHUNK_LEVEL) return; // silence: skip, the AI would invent words
+        uploadChunk(blob);
+      };
+
+      recorderRef.current = recorder;
+      try {
+        recorder.start();
+      } catch (err) {
+        console.warn('Recorder start failed:', err);
+      }
+    },
+    [uploadChunk]
+  );
+
+  const startServerEngine = useCallback(
+    (stream) => {
+      if (typeof window.MediaRecorder === 'undefined') {
+        setError('This browser cannot record audio. Please open ScamShield in Google Chrome, or type what the caller said below.');
+        return;
+      }
+      engineRef.current = 'server';
+      setEngine('server');
+      startRecorderChunk(stream);
+      chunkTimerRef.current = setInterval(() => {
+        if (!isListeningRef.current) return;
+        const current = recorderRef.current;
+        if (current && current.state === 'recording') {
+          try {
+            current.stop(); // its onstop uploads that chunk
+          } catch (_) {}
+        }
+        startRecorderChunk(stream);
+      }, CHUNK_MS);
+    },
+    [startRecorderChunk]
+  );
+
+  // ---------- browser engine (Web Speech API) ----------
+  const stopBrowserEngine = useCallback(() => {
+    if (recognitionRestartRef.current) {
+      clearTimeout(recognitionRestartRef.current);
+      recognitionRestartRef.current = null;
+    }
+    if (watchdogRef.current) {
+      clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
+    }
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+      try {
+        rec.abort();
+      } catch (_) {}
+    }
+    if (isMountedRef.current) setInterimText('');
+  }, []);
+
+  const switchToServerEngine = useCallback(() => {
+    if (engineRef.current === 'server' || !isListeningRef.current || !streamRef.current) return;
+    console.info('[LiveCallGuard] switching to server transcription');
+    stopBrowserEngine();
+    startServerEngine(streamRef.current);
+  }, [stopBrowserEngine, startServerEngine]);
+
+  const startBrowserEngine = useCallback(() => {
+    engineRef.current = 'browser';
+    setEngine('browser');
+    lastWordsTimeRef.current = Date.now();
+
+    const launch = () => {
+      if (!isListeningRef.current || engineRef.current !== 'browser') return;
+      let rec;
+      try {
+        rec = new SpeechRecognitionClass();
+      } catch (_) {
+        switchToServerEngine();
+        return;
+      }
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.lang = getLocale(languageRef.current);
+
+      rec.onresult = (event) => {
+        let interim = '';
+        let finals = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i];
+          if (r.isFinal) finals += `${r[0].transcript} `;
+          else interim += r[0].transcript;
+        }
+        lastWordsTimeRef.current = Date.now();
+        if (finals.trim()) appendFinalTranscript(finals);
+        if (isMountedRef.current) setInterimText(interim);
+      };
+
+      rec.onerror = (e) => {
+        const code = e?.error;
+        if (code === 'not-allowed') {
+          if (isMountedRef.current) {
+            setError('Microphone permission denied. Click the lock icon in the address bar, set Microphone to "Allow", then press Start Listening again.');
+          }
+          return;
+        }
+        // Engine problems the browser cannot recover from -> use the server engine instead
+        if (['network', 'audio-capture', 'service-not-allowed', 'language-not-supported', 'bad-grammar'].includes(code)) {
+          switchToServerEngine();
+        }
+        // 'no-speech' and 'aborted' are normal; onend restarts recognition
+      };
+
+      rec.onend = () => {
+        if (!isListeningRef.current || engineRef.current !== 'browser') return;
+        recognitionRestartRef.current = setTimeout(launch, 150);
+      };
+
+      recognitionRef.current = rec;
+      try {
+        rec.start();
+      } catch (_) {
+        recognitionRestartRef.current = setTimeout(launch, 400);
+      }
+    };
+
+    launch();
+
+    // Watchdog: sound is reaching the mic but the browser engine produces no words -> switch
+    watchdogRef.current = setInterval(() => {
+      if (!isListeningRef.current || engineRef.current !== 'browser') return;
+      const now = Date.now();
+      const soundRecently = now - lastSoundTimeRef.current < 3000;
+      if (soundRecently && now - lastWordsTimeRef.current > BROWSER_STALL_MS) switchToServerEngine();
+    }, 3000);
+  }, [SpeechRecognitionClass, appendFinalTranscript, switchToServerEngine]);
+
+  // Restart recognition with the new language when it changes mid-call
   useEffect(() => {
     languageRef.current = language;
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.lang = getLocale(language);
+        recognitionRef.current.stop(); // onend relaunches with the new language
       } catch (_) {}
     }
   }, [language]);
 
-  const appendFinalTranscript = useCallback(
-    (chunkText) => {
-      if (!chunkText || !chunkText.trim() || !isMountedRef.current) return;
-      setTranscript((prev) => {
-        const next = (prev + ' ' + chunkText.trim()).replace(/\s+/g, ' ').trim();
-        if (onTranscriptChange) onTranscriptChange(next);
-        return next;
-      });
-    },
-    [onTranscriptChange]
-  );
-
-  // Clean up all media, audio context, recorder, speech recognition, and timers
-  const cleanupAll = useCallback(() => {
-    manualStopRef.current = true;
-    isListeningRef.current = false;
-
-    if (levelRafRef.current) {
-      cancelAnimationFrame(levelRafRef.current);
-      levelRafRef.current = null;
-    }
-
-    if (chunkIntervalRef.current) {
-      clearInterval(chunkIntervalRef.current);
-      chunkIntervalRef.current = null;
-    }
-
-    if (restartTimerRef.current) {
-      clearTimeout(restartTimerRef.current);
-      restartTimerRef.current = null;
-    }
-
-    if (transcribeAbortRef.current) {
-      try {
-        transcribeAbortRef.current.abort();
-      } catch (_) {}
-      transcribeAbortRef.current = null;
-    }
-
-    if (mediaRecorderRef.current) {
-      try {
-        mediaRecorderRef.current.ondataavailable = null;
-        mediaRecorderRef.current.onstop = null;
-        if (mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-        }
-      } catch (_) {}
-      mediaRecorderRef.current = null;
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.abort();
-      } catch (_) {}
-      recognitionRef.current = null;
-    }
-
+  // ---------- teardown ----------
+  const releaseHardware = useCallback(() => {
+    if (levelRafRef.current) cancelAnimationFrame(levelRafRef.current);
+    levelRafRef.current = null;
     if (audioCtxRef.current) {
       try {
         audioCtxRef.current.close();
       } catch (_) {}
       audioCtxRef.current = null;
-      analyserRef.current = null;
     }
-
     if (streamRef.current) {
       try {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((t) => t.stop());
       } catch (_) {}
       streamRef.current = null;
     }
+  }, []);
 
+  const hardStop = useCallback(() => {
+    isListeningRef.current = false;
+    stopBrowserEngine();
+    if (chunkTimerRef.current) clearInterval(chunkTimerRef.current);
+    chunkTimerRef.current = null;
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (rec) {
+      rec.ondataavailable = null;
+      rec.onstop = null;
+      try {
+        if (rec.state !== 'inactive') rec.stop();
+      } catch (_) {}
+    }
+    abortControllersRef.current.forEach((c) => {
+      try {
+        c.abort();
+      } catch (_) {}
+    });
+    abortControllersRef.current.clear();
+    releaseHardware();
+    engineRef.current = null;
+    if (isMountedRef.current) {
+      setIsListening(false);
+      setInterimText('');
+      setMicLevel(0);
+      setNoAudioWarning(false);
+      setEngine(null);
+      setIsProcessing(false);
+    }
+  }, [stopBrowserEngine, releaseHardware]);
+
+  // ---------- public API ----------
+  const start = useCallback(async () => {
+    if (isListeningRef.current) return;
+    setError(null);
+    setServiceNotice(null);
+    setNoAudioWarning(false);
+
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setError('Microphone is not available here. Open the site in Google Chrome over https, or type what the caller said below.');
+      return;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 }
+      });
+    } catch (err) {
+      const name = err?.name || '';
+      let msg = 'Could not start the microphone. Check your device settings, or type what the caller said below.';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+        msg = 'Microphone permission denied. Click the lock icon in the address bar, set Microphone to "Allow", then press Start Listening again.';
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        msg = 'No microphone found on this device. Connect one, or type what the caller said below.';
+      } else if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError') {
+        msg = 'The microphone is busy (a phone call is probably using it). Open ScamShield on a laptop or second phone and put the call on SPEAKER next to it.';
+      }
+      if (isMountedRef.current) setError(msg);
+      return;
+    }
+
+    if (!isMountedRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    streamRef.current = stream;
+    isListeningRef.current = true;
+    appendChainRef.current = Promise.resolve();
+    setIsListening(true);
+
+    startLevelMeter(stream);
+    if (canUseBrowserEngine(SpeechRecognitionClass)) startBrowserEngine();
+    else startServerEngine(stream);
+  }, [SpeechRecognitionClass, startLevelMeter, startBrowserEngine, startServerEngine]);
+
+  /**
+   * Stops listening. Resolves with the final transcript once the last audio chunk
+   * has been transcribed (max ~9 s), so "Stop & View Report" never loses the last words.
+   */
+  const stop = useCallback(async () => {
+    if (!isListeningRef.current) return transcriptRef.current;
+    isListeningRef.current = false;
+    stopBrowserEngine();
+    if (chunkTimerRef.current) clearInterval(chunkTimerRef.current);
+    chunkTimerRef.current = null;
+
+    // Flush the chunk in progress (its onstop handler uploads it)
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (rec && rec.state === 'recording') {
+      await new Promise((resolve) => {
+        const prevOnStop = rec.onstop;
+        rec.onstop = (e) => {
+          try {
+            if (prevOnStop) prevOnStop(e);
+          } finally {
+            resolve();
+          }
+        };
+        try {
+          rec.stop();
+        } catch (_) {
+          resolve();
+        }
+        setTimeout(resolve, 1500);
+      });
+    }
+    releaseHardware();
     if (isMountedRef.current) {
       setIsListening(false);
       setInterimText('');
       setMicLevel(0);
       setNoAudioWarning(false);
     }
-  }, []);
 
-  // Start Web Audio AnalyserNode level meter + 8s silence detector
-  const startAudioLevelMeter = useCallback((stream) => {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-
-    try {
-      const audioCtx = new AudioCtx();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.65;
-      source.connect(analyser);
-
-      audioCtxRef.current = audioCtx;
-      analyserRef.current = analyser;
-      lastSoundTimeRef.current = Date.now();
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      let lastUiUpdate = 0;
-
-      const sampleLevel = (now) => {
-        if (!isListeningRef.current || !analyserRef.current || !isMountedRef.current) return;
-        levelRafRef.current = requestAnimationFrame(sampleLevel);
-
-        if (now - lastUiUpdate < 90) return; // update ~11 times/sec for smooth zero-lag UI
-        lastUiUpdate = now;
-
-        analyser.getByteTimeDomainData(dataArray);
-        let sumSquares = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          const normalized = (dataArray[i] - 128) / 128;
-          sumSquares += normalized * normalized;
-        }
-        const rms = Math.sqrt(sumSquares / dataArray.length);
-        const scaledLevel = Math.min(100, Math.round(rms * 320));
-
-        // Track peak mic level during the current 8s recording chunk
-        if (scaledLevel > chunkPeakLevelRef.current) {
-          chunkPeakLevelRef.current = scaledLevel;
-        }
-
-        setMicLevel(scaledLevel);
-
-        if (scaledLevel >= 4) {
-          lastSoundTimeRef.current = Date.now();
-          setNoAudioWarning(false);
-        } else if (Date.now() - lastSoundTimeRef.current >= 8000) {
-          setNoAudioWarning(true);
-        }
-      };
-
-      levelRafRef.current = requestAnimationFrame(sampleLevel);
-    } catch (e) {
-      console.warn('Web Audio Analyser initialization warning:', e);
-    }
-  }, []);
-
-  // Start MediaRecorder 8-second standalone chunk loop -> POST /api/calls/transcribe
-  const startMediaRecorderLoop = useCallback(
-    (stream) => {
-      if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') {
-        return;
-      }
-
-      const mimeType = getSupportedMimeType();
-
-      const startSingleChunkRecorder = () => {
-        if (!isListeningRef.current || !stream.active) return;
-
-        // Reset peak level tracker for this new 8s chunk
-        chunkPeakLevelRef.current = 0;
-
-        let chunks = [];
-        let recorder;
-        try {
-          recorder = mimeType
-            ? new window.MediaRecorder(stream, { mimeType })
-            : new window.MediaRecorder(stream);
-        } catch (err) {
-          try {
-            recorder = new window.MediaRecorder(stream);
-          } catch (_) {
-            return;
-          }
-        }
-
-        recorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            chunks.push(event.data);
-          }
-        };
-
-        recorder.onstop = async () => {
-          const peakForThisChunk = chunkPeakLevelRef.current;
-          chunkPeakLevelRef.current = 0;
-
-          if (!chunks.length || !isMountedRef.current) return;
-          const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
-          chunks = [];
-          if (blob.size < 400) return;
-
-          // If the chunk was silent (level stayed below threshold the whole time), do NOT upload it
-          if (analyserRef.current && peakForThisChunk < 4) {
-            return;
-          }
-
-          if (isMockMode) return;
-
-          try {
-            const controller = new AbortController();
-            transcribeAbortRef.current = controller;
-            const res = await api.calls.transcribe({
-              audioBlob: blob,
-              language: languageRef.current,
-              signal: controller.signal
-            });
-            if (!isMountedRef.current) return;
-            setServiceNotice(null);
-            // Read reply from "text" (fall back to "transcript")
-            const textChunk = String(res?.text ?? res?.transcript ?? '').trim();
-            if (textChunk) {
-              serverHasTranscribedRef.current = true;
-              appendFinalTranscript(textChunk);
-            }
-          } catch (err) {
-            if (!isMountedRef.current) return;
-            if (err?.response?.status === 503) {
-              setServiceNotice(
-                'Transcription service is temporarily busy (503) — keeping Live Call Guard active.'
-              );
-            }
-            console.warn('Chunk transcription skipped:', err?.message || err);
-          }
-        };
-
-        mediaRecorderRef.current = recorder;
-        try {
-          recorder.start();
-        } catch (_) {}
-      };
-
-      startSingleChunkRecorder();
-
-      // Every 8 seconds stop + restart recorder to produce a complete standalone file chunk
-      chunkIntervalRef.current = setInterval(() => {
-        if (!isListeningRef.current) return;
-        const currentRec = mediaRecorderRef.current;
-        if (currentRec && currentRec.state === 'recording') {
-          try {
-            currentRec.stop();
-          } catch (_) {}
-        }
-        startSingleChunkRecorder();
-      }, 8000);
-    },
-    [appendFinalTranscript]
-  );
-
-  // Start browser webkitSpeechRecognition for instant live preview words
-  const startBrowserSpeechRecognition = useCallback(() => {
-    if (!SpeechRecognitionClass) return;
-
-    const launchRecognition = () => {
-      if (!isListeningRef.current || manualStopRef.current || !isMountedRef.current) return;
-
-      try {
-        const recognition = new SpeechRecognitionClass();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = getLocale(languageRef.current);
-
-        recognition.onresult = (event) => {
-          if (!isMountedRef.current) return;
-          let currentInterim = '';
-          let finalizedChunk = '';
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              finalizedChunk += item[0].transcript + ' ';
-            } else {
-              currentInterim += item[0].transcript;
-            }
-          }
-
-          if (finalizedChunk.trim()) {
-            // If server hasn't taken over or in mock mode, append speech recognition final text so transcript always grows
-            if (isMockMode || !serverHasTranscribedRef.current) {
-              appendFinalTranscript(finalizedChunk);
-            }
-            setInterimText('');
-          } else {
-            setInterimText(currentInterim);
-          }
-        };
-
-        recognition.onerror = (e) => {
-          if (!isMountedRef.current) return;
-          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-            return;
-          }
-          // Auto-restart on 'no-speech' or 'network' errors while listening
-          if (
-            (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted') &&
-            isListeningRef.current &&
-            !manualStopRef.current
-          ) {
-            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-            restartTimerRef.current = setTimeout(() => {
-              if (isListeningRef.current && !manualStopRef.current) {
-                try {
-                  recognition.start();
-                } catch (_) {
-                  launchRecognition();
-                }
-              }
-            }, 350);
-          }
-        };
-
-        recognition.onend = () => {
-          if (!manualStopRef.current && isListeningRef.current && isMountedRef.current) {
-            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-            restartTimerRef.current = setTimeout(() => {
-              if (isListeningRef.current && !manualStopRef.current) {
-                try {
-                  recognition.start();
-                } catch (_) {
-                  launchRecognition();
-                }
-              }
-            }, 250);
-          }
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-      } catch (err) {
-        console.warn('SpeechRecognition preview warning:', err);
-      }
-    };
-
-    launchRecognition();
-  }, [SpeechRecognitionClass, appendFinalTranscript]);
-
-  // Request mic permissions first, then start level meter + MediaRecorder + SpeechRecognition
-  const start = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    setError(null);
-    setNoAudioWarning(false);
-    manualStopRef.current = false;
-    serverHasTranscribedRef.current = false;
-
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setError(
-        'Microphone access is not available in this browser. Please use Google Chrome or type what the caller said below.'
-      );
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: true
-        }
-      });
-
-      if (!isMountedRef.current || manualStopRef.current) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-
-      streamRef.current = stream;
-      isListeningRef.current = true;
-      setIsListening(true);
-
-      startAudioLevelMeter(stream);
-      startMediaRecorderLoop(stream);
-      startBrowserSpeechRecognition();
-    } catch (err) {
-      console.warn('Microphone access error:', err);
-      const errName = err?.name || '';
-      let friendlyMsg =
-        'Could not access the microphone. Please check your device settings or use the manual text box below.';
-
-      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-        friendlyMsg =
-          'Microphone permission denied. How to allow: tap the lock / site settings icon on the left of your browser address bar, set Microphone to "Allow", and tap Start Listening again.';
-      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-        friendlyMsg =
-          'No microphone was found on this device. Please connect a microphone or use the "Type what the caller said" box below.';
-      } else if (
-        errName === 'NotReadableError' ||
-        errName === 'TrackStartError' ||
-        errName === 'AbortError'
-      ) {
-        friendlyMsg =
-          'Your phone call is using this mic. Open ScamShield on a laptop or second phone and put the call on SPEAKER near it.';
-      }
-
-      if (isMountedRef.current) {
-        setError(friendlyMsg);
-        setIsListening(false);
-      }
-      isListeningRef.current = false;
-    }
-  }, [startAudioLevelMeter, startMediaRecorderLoop, startBrowserSpeechRecognition]);
-
-  const stop = useCallback(() => {
-    cleanupAll();
-  }, [cleanupAll]);
+    await Promise.race([
+      appendChainRef.current.catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, FINAL_FLUSH_TIMEOUT_MS))
+    ]);
+    engineRef.current = null;
+    if (isMountedRef.current) setEngine(null);
+    return transcriptRef.current;
+  }, [stopBrowserEngine, releaseHardware]);
 
   const reset = useCallback(() => {
-    cleanupAll();
+    hardStop();
+    commitTranscript('');
     if (isMountedRef.current) {
-      setTranscript('');
-      setInterimText('');
       setError(null);
-      setNoAudioWarning(false);
-      setMicLevel(0);
+      setServiceNotice(null);
     }
-  }, [cleanupAll]);
+  }, [hardStop, commitTranscript]);
 
-  const appendText = useCallback(
-    (text) => {
-      if (!isMountedRef.current) return;
-      appendFinalTranscript(text);
-    },
-    [appendFinalTranscript]
-  );
+  const appendText = useCallback((text) => appendFinalTranscript(text), [appendFinalTranscript]);
 
-  const setFullTranscript = useCallback(
-    (newText) => {
-      if (!isMountedRef.current) return;
-      setTranscript(newText);
-      if (onTranscriptChange) onTranscriptChange(newText);
-    },
-    [onTranscriptChange]
-  );
+  const setFullTranscript = useCallback((text) => commitTranscript(String(text || '')), [commitTranscript]);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      cleanupAll();
+      hardStop();
     };
-  }, [cleanupAll]);
+  }, [hardStop]);
 
   return {
     isSupported,
     isListening,
+    isProcessing,
+    engine,
     transcript,
     interimText,
     micLevel,

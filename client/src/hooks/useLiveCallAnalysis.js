@@ -130,8 +130,8 @@ export function useLiveCallAnalysis({ transcript, language = 'en', onScamTrigger
         if (nextText && nextText.trim().length > 0) {
           performAnalysis(nextText);
         }
-      }, 15000);
-    }, 10000);
+      }, 8000);
+    }, 4000);
 
     return () => {
       clearTimeout(firstTimeout);
